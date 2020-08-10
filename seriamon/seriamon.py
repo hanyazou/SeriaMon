@@ -9,6 +9,7 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QTextCursor
 
+from seriamon import plotter
 
 class serialReaderThread(QtCore.QThread):
     def __init__(self, port, signal):
@@ -78,6 +79,8 @@ class mainWindow(QWidget):
         self.autoScrollCheckBox = QCheckBox('auto scroll')
         self.autoScrollCheckBox.setChecked(True)
 
+        self.plotter = plotter.Plotter()
+
         self.timestampCheckBox = QCheckBox('timestamp')
         self.timestampCheckBox.setChecked(True)
 
@@ -99,12 +102,14 @@ class mainWindow(QWidget):
         layout.addWidget(self.stopbitsComboBox)
 
         grid = QGridLayout()
+        grid.addWidget(self.plotter, 0, 0, 1, 5)
         grid.addWidget(self.textEdit, 1, 0, 1, 5)
         grid.addWidget(self.portComboBox, 2, 1, 1, 2)
         grid.addLayout(layout, 3, 1, 1, 4)
         grid.addWidget(self.autoScrollCheckBox, 4, 1)
         grid.addWidget(self.timestampCheckBox, 4, 2)
         grid.addWidget(self.connectButton, 4, 4)
+        grid.setRowStretch(0, 1)
         grid.setRowStretch(1, 1)
         grid.setColumnStretch(0, 1)
         self.setLayout(grid)
@@ -150,12 +155,23 @@ class mainWindow(QWidget):
         cursor = QTextCursor(self.textEdit.document())
         cursor.movePosition(QTextCursor.End)
         if self.newline and self.timestampCheckBox.isChecked():
-            timestamp = datetime.now().isoformat(sep=' ', timespec='milliseconds')
+            self.lasttime = datetime.now()
+            timestamp = self.lasttime.isoformat(sep=' ', timespec='milliseconds')
             cursor.insertText("{} ".format(timestamp))
             self.newline = False
+            self.lastLine = str('')
         cursor.insertText(text)
-        if text == '\n':
+        if text != '\n':
+            self.lastLine = self.lastLine + text
+        else:
             self.newline = True
             scrollbar = self.textEdit.verticalScrollBar()
             if self.autoScrollCheckBox.isChecked():
-                scrollbar.setValue(scrollbar.maximum() - 1) 
+                scrollbar.setValue(scrollbar.maximum() - 1)
+
+            values = [float(v.split(':')[-1]) for v in self.lastLine.split()]
+            print(self.lastLine)
+            print(self.lasttime.timestamp())
+            print(values)
+            self.plotter.insert(self.lasttime.timestamp(), values)
+            self.plotter.update()
