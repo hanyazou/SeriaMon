@@ -44,6 +44,14 @@ class Plotter(QWidget):
         self.setLayout(grid)
         self.update()
 
+    def putLog(self, value, sourceId, op, timestamp):
+        try:
+            values = [float(v.split(':')[-1]) for v in value.split()]
+            self.insert(timestamp.timestamp(), values)
+            self.update()
+        except Exception as e:
+            pass
+
     def roundup(self, num):
         l = math.ceil(math.log10(num))
         num = num / (10 ** l)

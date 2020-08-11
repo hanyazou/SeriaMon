@@ -19,13 +19,13 @@ class serialReaderThread(QtCore.QThread):
         while self.stayAlive:
             if self.parent.port.is_open:
                 try:
-                    text = '{} {}'.format(self.parent.id,
-                                          self.parent.port.readline().decode().rstrip('\n\r'))
+                    sourceId = self.parent.sourceId
+                    value = self.parent.port.readline().decode().rstrip('\n\r')
                     if self.parent.plotCheckBox.isChecked():
-                        self.parent.dataQueue.put(text)
+                        op = 'p'
                     else:
-                        self.parent.msgQueue.put(text)
-                    self.parent.signal.emit('s')
+                        op = None
+                    self.parent.logger.putLog(value, sourceId, op)
                 except Exception as e:
                     if not self.ignoreErrors:
                         print(e)
@@ -35,13 +35,11 @@ class serialReaderThread(QtCore.QThread):
 
 class serialReader(QWidget):
 
-    def __init__(self, id, signal, dataQueue, msgQueue):
+    def __init__(self, sourceId, logger):
         super().__init__()
 
-        self.id = id
-        self.signal = signal
-        self.dataQueue = dataQueue
-        self.msgQueue = msgQueue
+        self.sourceId = sourceId
+        self.logger = logger
         self.serialReaderThread = serialReaderThread(self)
         self.port = serial.Serial()
 
@@ -104,7 +102,7 @@ class serialReader(QWidget):
         if self.port.is_open:
             self.serialReaderThread.ignoreErrors = True
             self.port.close()
-            self.msgQueue.put('{} close port'.format(self.id))
+            self.logger.putLog('---- close port {} -----'.format(self.port.port), self.sourceId)
 
         self.port.port = self.portComboBox.currentText()
         self.port.baudrate = int(self.baudrateComboBox.currentText())
@@ -122,7 +120,6 @@ class serialReader(QWidget):
         self.connectButton.setText('Disconnect' if self.connected else 'Connect')
 
         if self.connected:
-            self.msgQueue.put('{} open port'.format(self.id))
-            print(self.port)
+            self.logger.putLog('---- close open {} -----'.format(self.port.port), self.sourceId)
             self.serialReaderThread.ignoreErrors = False
             self.port.open()
