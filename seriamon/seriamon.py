@@ -8,24 +8,33 @@ from PyQt5 import QtCore
 from seriamon import plotter
 from seriamon import reader
 from seriamon import viewer
+from seriamon import logger
 
-class mainWindow(QWidget):
+class mainWindow(QMainWindow):
 
     serialPortSignal = QtCore.pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
 
+        """
+           initialize properties
+        """
         self.NUMPORTS = 4;
         self.MAXQUEUESIZE = 10;
         self.queue = queue.Queue(self.MAXQUEUESIZE)
         self.serialPortSignal.connect(self.handler)
+
+        """
+           widgets
+        """
         self.readers = []
         for i in range(0, self.NUMPORTS):
             self.readers.append(reader.serialReader(sourceId=str(i), logger=self))
 
         self.plotter = plotter.Plotter()
         self.viewer = viewer.Viewer()
+        self.logger = logger.Logger()
 
         self.tabs = QTabWidget()
         for i in range(0, self.NUMPORTS):
@@ -38,7 +47,20 @@ class mainWindow(QWidget):
         grid.setRowStretch(0, 1)
         grid.setRowStretch(1, 1)
         grid.setColumnStretch(0, 1)
-        self.setLayout(grid)
+        widget = QWidget()
+        widget.setLayout(grid)
+        self.setCentralWidget(widget)
+
+        """
+           menu
+        """
+        logmenu = QAction('&Log...', self)
+        logmenu.triggered.connect(self.logger.setup)
+
+        menubar = self.menuBar()
+        filemenu = menubar.addMenu('&File')
+        filemenu.addAction(logmenu)
+
         self.show()
 
     def putLog(self, value, sourceId=None, op=None, timestamp=None):
@@ -61,3 +83,4 @@ class mainWindow(QWidget):
             self.viewer.putLog(value, sourceId, op, timestamp)
             if 'p' in op:
                 self.plotter.putLog(value, sourceId, op, timestamp)
+            self.logger.putLog(value, sourceId, op, timestamp)
