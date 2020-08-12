@@ -13,15 +13,6 @@ class UartReader(QWidget):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__()
 
-        self.initPreferences('seriamon.uartreader.{}.'.format(instanceId),
-                             [[ str, 'portname', None ],
-                              [ bool, 'plot', False ],
-                              [ int, 'baudrate', 9600 ],
-                              [ int, 'bytesize', 1 ],
-                              [ str, 'parity', 1 ],
-                              [ float, 'stopbits', 1 ],
-                              [ bool, 'connected', False ]])
-
         self.compId = compId
         self.sink = sink
         self.thread = _ReaderThread(self)
@@ -30,10 +21,9 @@ class UartReader(QWidget):
         self.portnameComboBox = QComboBox()
         iterator = sorted(serial.tools.list_ports.comports(include_links=True))
         for (port, desc, hwid) in iterator:
-            self.portnameComboBox.addItem(port)
+            self.portnameComboBox.addItem(port, port)
         
         self.plotCheckBox = QCheckBox('plot')
-        self.plotCheckBox.setChecked(False)
 
         self.baudrateComboBox = QComboBox()
         self.baudrateComboBox.addItem('9600', 9600)
@@ -42,19 +32,24 @@ class UartReader(QWidget):
         self.bytesizeComboBox = QComboBox()
         self.bytesizeComboBox.addItem('7', QVariant(serial.SEVENBITS))
         self.bytesizeComboBox.addItem('8', QVariant(serial.EIGHTBITS))
-        self.bytesizeComboBox.setCurrentText('8')
 
         self.parityComboBox = QComboBox()
         self.parityComboBox.addItem('none', QVariant(serial.PARITY_NONE))
         self.parityComboBox.addItem('odd', QVariant(serial.PARITY_ODD))
         self.parityComboBox.addItem('even', QVariant(serial.PARITY_EVEN))
-        self.parityComboBox.setCurrentText('none')
 
         self.stopbitsComboBox = QComboBox()
         self.stopbitsComboBox.addItem('1', QVariant(serial.STOPBITS_ONE))
         self.stopbitsComboBox.addItem('1.5', QVariant(serial.STOPBITS_ONE_POINT_FIVE))
         self.stopbitsComboBox.addItem('2', QVariant(serial.STOPBITS_TWO))
-        self.stopbitsComboBox.setCurrentText('1')
+
+        self.initPreferences('seriamon.uartreader.{}.'.format(instanceId),
+                             [[ str,    'portname', None,   self.portnameComboBox ],
+                              [ bool,   'plot',     False,  self.plotCheckBox ],
+                              [ int,    'baudrate', 9600,   self.baudrateComboBox ],
+                              [ int,    'bytesize', 8,      self.bytesizeComboBox ],
+                              [ str,    'parity',   'N',    self.parityComboBox ],
+                              [ float,  'stopbits', 1,      self.stopbitsComboBox ]])
 
         self.applyButton = QPushButton('Apply')
         self.applyButton.clicked.connect(self.reflectFromUi)
@@ -118,40 +113,38 @@ class UartReader(QWidget):
             setattr(self, name, typ(value))
 
     def reflectToUi(self):
-        self.portnameComboBox.setCurrentText(self.portname)
-        self.plotCheckBox.setChecked(self.plot)
-        index = self.baudrateComboBox.findData(self.baudrate)
-        if 0 <= index:
-            self.baudrateComboBox.setCurrentIndex(index)
-        else:
-            print('WARNING: failed to set baudrate to {}'.format(self.baudrate))
-        index = self.bytesizeComboBox.findData(self.bytesize)
-        if 0 <= index:
-            self.bytesizeComboBox.setCurrentIndex(index)
-        else:
-            print('WARNING: failed to set bytesize to {}'.format(self.bytesize))
-        index = self.parityComboBox.findData(self.parity)
-        if 0 <= index:
-            self.parityComboBox.setCurrentIndex(index)
-        else:
-            print('WARNING: failed to set parity to {}'.format(self.parity))
-        index = self.stopbitsComboBox.findData(self.stopbits)
-        if 0 <= index:
-            self.stopbitsComboBox.setCurrentIndex(index)
-        else:
-            print('WARNING: failed to set stopbits to {}'.format(self.stopbits))
-        #
-        # XXX, 'connected' should be handled here also
-        #
-        # self.connectButton.setText('Disconnect' if self.connected else 'Connect')
+        for prop in self.preferencePoperties:
+            typ = prop[0]
+            name = prop[1]
+            if 4 <= len(prop):
+                widget = prop[3]
+            else:
+                widget = None
+            if typ in (str, int, float) and isinstance(widget, QComboBox):
+                index = widget.findData(typ(getattr(self, name)))
+                if 0 <= index:
+                    widget.setCurrentIndex(index)
+                else:
+                    print('WARNING: failed to reflect {} to UI'.format(name))
+            elif typ is bool and isinstance(widget, QCheckBox):
+                widget.setChecked(typ(getattr(self, name)))
+            elif not widget is None:
+                print('WARNING: failed to reflect {} to UI'.format(name))
 
     def reflectFromUi(self):
-        self.portname = self.portnameComboBox.currentText()
-        self.plot = self.plotCheckBox.isChecked()
-        self.baudrate = self.baudrateComboBox.currentData()
-        self.bytesize = self.bytesizeComboBox.currentData()
-        self.parity = self.parityComboBox.currentData()
-        self.stopbits = self.stopbitsComboBox.currentData()
+        for prop in self.preferencePoperties:
+            typ = prop[0]
+            name = prop[1]
+            if 4 <= len(prop):
+                widget = prop[3]
+            else:
+                widget = None
+            if isinstance(widget, QComboBox):
+                setattr(self, name, typ(widget.currentData()))
+            elif typ is bool and isinstance(widget, QCheckBox):
+                setattr(self, name, typ(widget.isChecked()))
+            elif not widget is None:
+                print('WARNING: failed to reflect {} from UI'.format(name))
 
     def _buttonClicked(self):
         sender = self.sender()
