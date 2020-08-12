@@ -74,11 +74,11 @@ class mainWindow(QMainWindow):
         self.show()
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
-        if not compId:
+        if compId is None:
             compId = '?'
-        if not types:
+        if types is None:
             types = ''
-        if not timestamp:
+        if timestamp is None:
             timestamp = datetime.now()
         self.queue.put([value, compId, types, timestamp ])
         self.serialPortSignal.emit('s')
