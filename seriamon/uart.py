@@ -8,31 +8,6 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QTextCursor
 
-class ReaderThread(QtCore.QThread):
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-        self.stayAlive = True
-        self.ignoreErrors = False
-
-    def run(self):
-        while self.stayAlive:
-            if self.parent.port.is_open:
-                try:
-                    compId = self.parent.compId
-                    value = self.parent.port.readline().decode().rstrip('\n\r')
-                    if self.parent.plotCheckBox.isChecked():
-                        types = 'p'
-                    else:
-                        types = None
-                    self.parent.sink.putLog(value, compId, types)
-                except Exception as e:
-                    if not self.ignoreErrors:
-                        print(e)
-                    self.msleep(100)
-            else:
-                self.msleep(100)
-
 class UartReader(QWidget):
 
     def __init__(self, compId, sink):
@@ -40,7 +15,7 @@ class UartReader(QWidget):
 
         self.compId = compId
         self.sink = sink
-        self.thread = ReaderThread(self)
+        self.thread = _ReaderThread(self)
         self.port = serial.Serial()
 
         self.portComboBox = QComboBox()
@@ -73,9 +48,9 @@ class UartReader(QWidget):
         self.stopbitsComboBox.setCurrentText('1')
 
         self.connectButton = QPushButton()
-        self.connectButton.clicked.connect(self.buttonClicked)
+        self.connectButton.clicked.connect(self._buttonClicked)
         self.connected = True
-        self.buttonClicked()
+        self._buttonClicked()
 
         layout = QHBoxLayout()
         layout.addWidget(QLabel('baud rate:'))
@@ -96,7 +71,7 @@ class UartReader(QWidget):
 
         self.thread.start()
 
-    def buttonClicked(self):
+    def _buttonClicked(self):
         sender = self.sender()
 
         if self.port.is_open:
@@ -123,3 +98,28 @@ class UartReader(QWidget):
             self.sink.putLog('---- close open {} -----'.format(self.port.port), self.compId)
             self.thread.ignoreErrors = False
             self.port.open()
+
+class _ReaderThread(QtCore.QThread):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+        self.stayAlive = True
+        self.ignoreErrors = False
+
+    def run(self):
+        while self.stayAlive:
+            if self.parent.port.is_open:
+                try:
+                    compId = self.parent.compId
+                    value = self.parent.port.readline().decode().rstrip('\n\r')
+                    if self.parent.plotCheckBox.isChecked():
+                        types = 'p'
+                    else:
+                        types = None
+                    self.parent.sink.putLog(value, compId, types)
+                except Exception as e:
+                    if not self.ignoreErrors:
+                        print(e)
+                    self.msleep(100)
+            else:
+                self.msleep(100)

@@ -23,7 +23,7 @@ class mainWindow(QMainWindow):
         self.NUMPORTS = 4;
         self.MAXQUEUESIZE = 10;
         self.queue = queue.Queue(self.MAXQUEUESIZE)
-        self.serialPortSignal.connect(self.handler)
+        self.serialPortSignal.connect(self._handler)
 
         """
            create components
@@ -80,7 +80,7 @@ class mainWindow(QMainWindow):
         self.queue.put([value, compId, types, timestamp ])
         self.serialPortSignal.emit('s')
 
-    def handler(self, msg):
+    def _handler(self, msg):
         while not self.queue.empty():
             item = self.queue.get()
             value = item[0]
