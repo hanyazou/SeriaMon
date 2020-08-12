@@ -58,13 +58,14 @@ class SeriaMonComponent:
                 if 0 <= index:
                     widget.setCurrentIndex(index)
                 else:
-                    print('WARNING: failed to reflect {} to UI'.format(name))
+                    widget.addItem(str(value), typ(value))
+                    widget.setCurrentText(str(value))
             elif value is not None and typ is bool and isinstance(widget, QCheckBox):
                 widget.setChecked(typ(value))
             elif value is not None and typ in (str, int, float) and isinstance(widget, QLineEdit):
                 widget.setText(typ(value))
             elif widget is not None and value is not None:
-                print('WARNING: failed to reflect {} to UI'.format(name))
+                print('WARNING: failed to reflect {} {} to UI'.format(name, value))
 
     def reflectFromUi(self):
         for prop in self.preferencePoperties:

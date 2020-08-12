@@ -9,6 +9,7 @@ from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QTextCursor
 
 from .component import SeriaMonComponent
+from .utils import *
 
 class UartReader(QWidget, SeriaMonComponent):
 
@@ -18,10 +19,8 @@ class UartReader(QWidget, SeriaMonComponent):
         self.thread = _ReaderThread(self)
         self.port = serial.Serial()
 
-        self.portnameComboBox = QComboBox()
-        iterator = sorted(serial.tools.list_ports.comports(include_links=True))
-        for (port, desc, hwid) in iterator:
-            self.portnameComboBox.addItem(port, port)
+        self.portnameComboBox = ComboBox()
+        self.portnameComboBox.aboutToBeShown.connect(self._updatePortnames)
         
         self.plotCheckBox = QCheckBox('plot')
 
@@ -74,6 +73,19 @@ class UartReader(QWidget, SeriaMonComponent):
         self.setLayout(grid)
 
         self.thread.start()
+
+    def _updatePortnames(self):
+        currentText = self.portnameComboBox.currentText()
+        portnames = [v[0] for v in serial.tools.list_ports.comports(include_links=True)]
+        self.portnameComboBox.clear()
+        if currentText is not None and currentText != '' and not currentText in portnames:
+            portnames.append(currentText)
+        if self.portname is not None and not self.portname in portnames:
+            portnames.append(self.portname)
+        itr = sorted(portnames)
+        for port in itr:
+            self.portnameComboBox.addItem(port, port)
+        self.portnameComboBox.setCurrentText(currentText)
 
     def _buttonClicked(self):
         sender = self.sender()
