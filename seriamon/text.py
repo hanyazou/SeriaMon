@@ -2,9 +2,11 @@ import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QTextCursor
 
-class TextViewer(QWidget):
-    def __init__(self, compId, sink):
-        super().__init__()
+from .component import SeriaMonComponent
+
+class TextViewer(QWidget, SeriaMonComponent):
+    def __init__(self, compId, sink, instanceId=0):
+        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
         self.textEdit = QPlainTextEdit()
         self.textEdit.setReadOnly(True)
@@ -21,6 +23,11 @@ class TextViewer(QWidget):
 
         self.compIdCheckBox = QCheckBox('port id')
         self.compIdCheckBox.setChecked(False)
+
+        self.initPreferences('seriamon.textviewer.{}.'.format(instanceId),
+                             [[ bool,   'autoScroll', True,   self.autoScrollCheckBox ],
+                              [ bool,   'timestamp',  True,   self.timestampCheckBox ],
+                              [ bool,   'compId',     False,  self.compIdCheckBox ]])
 
         grid = QGridLayout()
         grid.addWidget(self.textEdit, 0, 0, 1, 7)

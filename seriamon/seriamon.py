@@ -5,6 +5,7 @@ from datetime import datetime
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
+from .component import SeriaMonComponent
 from .plotter import Plotter
 from .uart import UartReader
 from .text import TextViewer
@@ -20,6 +21,7 @@ class mainWindow(QMainWindow):
         """
            initialize properties
         """
+        self.prefFilename = os.path.join(os.path.expanduser('~'), '.seriamon.cfg')
         self.NUMPORTS = 4;
         self.MAXQUEUESIZE = 10;
         self.queue = queue.Queue(self.MAXQUEUESIZE)
@@ -29,16 +31,23 @@ class mainWindow(QMainWindow):
            create components
         """
         id = 0
+        self.components = []
         self.uartReaders = []
         for i in range(0, self.NUMPORTS):
-            self.uartReaders.append(UartReader(compId=str(id), sink=self))
+            self.uartReaders.append(UartReader(compId=id, sink=self, instanceId=i))
+            self.components.append(self.uartReaders[i])
             id += 1
-        self.plotter = Plotter(compId=str(id), sink=self)
+        self.plotter = Plotter(compId=id, sink=self)
+        self.components.append(self.plotter)
         id += 1
-        self.textViewer = TextViewer(compId=str(id), sink=self)
+        self.textViewer = TextViewer(compId=id, sink=self)
+        self.components.append(self.textViewer)
         id += 1
-        self.logger = Logger(compId=str(id), sink=self)
+        self.logger = Logger(compId=id, sink=self)
+        self.components.append(self.logger)
         id += 1
+
+        self._loadPreferences()
 
         """
            widgets
@@ -71,14 +80,53 @@ class mainWindow(QMainWindow):
         self.show()
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
-        if not compId:
+        if compId is None:
             compId = '?'
-        if not types:
+        if types is None:
             types = ''
-        if not timestamp:
+        if timestamp is None:
             timestamp = datetime.now()
         self.queue.put([value, compId, types, timestamp ])
         self.serialPortSignal.emit('s')
+
+    def closeEvent(self, event):
+        self._savePreferences()
+        QMainWindow.closeEvent(self, event)
+
+    def _savePreferences(self):
+        preferences = {}
+        for comp in self.components:
+            try:
+                if isinstance(comp, SeriaMonComponent):
+                    comp.savePreferences(preferences)
+            except Exception as e:
+                print(e)
+        with open(self.prefFilename, 'w') as writer:
+            for key, value in preferences.items():
+                writer.write('{}: {}\n'.format(key, value))
+            writer.close()
+
+    def _loadPreferences(self):
+        preferences = {}
+        try:
+            reader = open(self.prefFilename, 'r')
+            for line in reader:
+                line = line.rstrip('\n\r')
+                try:
+                    pos = line.index(':')
+                    preferences[line[0:pos]] = line[pos+2:]
+                except Exception as e:
+                    print(e)
+                    print(line)
+            reader.close()
+        except Exception as e:
+            print(e)
+        for comp in self.components:
+            try:
+                if isinstance(comp, SeriaMonComponent):
+                    comp.loadPreferences(preferences)
+            except Exception as e:
+                print(e)
 
     def _handler(self, msg):
         while not self.queue.empty():

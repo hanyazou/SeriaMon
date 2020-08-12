@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import *
 import qwt as Qwt
 
 class Plotter(QWidget):
-    def __init__(self, compId, sink):
+    def __init__(self, compId, sink, instanceId=0):
         super().__init__()
 
         self.MAXSAMPLES = 10000

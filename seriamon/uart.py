@@ -8,44 +8,48 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QTextCursor
 
-class UartReader(QWidget):
+from .component import SeriaMonComponent
 
-    def __init__(self, compId, sink):
-        super().__init__()
+class UartReader(QWidget, SeriaMonComponent):
 
-        self.compId = compId
-        self.sink = sink
+    def __init__(self, compId, sink, instanceId=0):
+        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+
         self.thread = _ReaderThread(self)
         self.port = serial.Serial()
 
-        self.portComboBox = QComboBox()
+        self.portnameComboBox = QComboBox()
         iterator = sorted(serial.tools.list_ports.comports(include_links=True))
         for (port, desc, hwid) in iterator:
-            self.portComboBox.addItem(port)
+            self.portnameComboBox.addItem(port, port)
         
         self.plotCheckBox = QCheckBox('plot')
-        self.plotCheckBox.setChecked(False)
 
         self.baudrateComboBox = QComboBox()
-        self.baudrateComboBox.addItem('9600')
-        self.baudrateComboBox.addItem('115200')
+        self.baudrateComboBox.addItem('9600', 9600)
+        self.baudrateComboBox.addItem('115200', 115200)
 
         self.bytesizeComboBox = QComboBox()
         self.bytesizeComboBox.addItem('7', QVariant(serial.SEVENBITS))
         self.bytesizeComboBox.addItem('8', QVariant(serial.EIGHTBITS))
-        self.bytesizeComboBox.setCurrentText('8')
 
         self.parityComboBox = QComboBox()
         self.parityComboBox.addItem('none', QVariant(serial.PARITY_NONE))
         self.parityComboBox.addItem('odd', QVariant(serial.PARITY_ODD))
         self.parityComboBox.addItem('even', QVariant(serial.PARITY_EVEN))
-        self.parityComboBox.setCurrentText('none')
 
         self.stopbitsComboBox = QComboBox()
         self.stopbitsComboBox.addItem('1', QVariant(serial.STOPBITS_ONE))
         self.stopbitsComboBox.addItem('1.5', QVariant(serial.STOPBITS_ONE_POINT_FIVE))
         self.stopbitsComboBox.addItem('2', QVariant(serial.STOPBITS_TWO))
-        self.stopbitsComboBox.setCurrentText('1')
+
+        self.initPreferences('seriamon.uartreader.{}.'.format(instanceId),
+                             [[ str,    'portname', None,   self.portnameComboBox ],
+                              [ bool,   'plot',     False,  self.plotCheckBox ],
+                              [ int,    'baudrate', 9600,   self.baudrateComboBox ],
+                              [ int,    'bytesize', 8,      self.bytesizeComboBox ],
+                              [ str,    'parity',   'N',    self.parityComboBox ],
+                              [ float,  'stopbits', 1,      self.stopbitsComboBox ]])
 
         self.connectButton = QPushButton()
         self.connectButton.clicked.connect(self._buttonClicked)
@@ -63,7 +67,7 @@ class UartReader(QWidget):
         layout.addWidget(self.stopbitsComboBox)
 
         grid = QGridLayout()
-        grid.addWidget(self.portComboBox, 0, 1, 1, 2)
+        grid.addWidget(self.portnameComboBox, 0, 1, 1, 2)
         grid.addWidget(self.plotCheckBox, 0, 3)
         grid.addLayout(layout, 1, 1, 1, 4)
         grid.addWidget(self.connectButton, 2, 4)
@@ -79,14 +83,15 @@ class UartReader(QWidget):
             self.port.close()
             self.sink.putLog('---- close port {} -----'.format(self.port.port), self.compId)
 
-        self.port.port = self.portComboBox.currentText()
-        self.port.baudrate = int(self.baudrateComboBox.currentText())
-        self.port.bytesize = self.bytesizeComboBox.currentData()
-        self.port.parity = self.parityComboBox.currentData()
-        self.port.stopbits = self.stopbitsComboBox.currentData()
+        self.reflectFromUi()
+        self.port.port = self.portname
+        self.port.baudrate = self.baudrate
+        self.port.bytesize = self.bytesize
+        self.port.parity = self.parity
+        self.port.stopbits = self.stopbits
 
         self.connected = not self.connected
-        self.portComboBox.setEnabled(not self.connected)
+        self.portnameComboBox.setEnabled(not self.connected)
         self.plotCheckBox.setEnabled(not self.connected)
         self.baudrateComboBox.setEnabled(not self.connected)
         self.bytesizeComboBox.setEnabled(not self.connected)
@@ -95,7 +100,7 @@ class UartReader(QWidget):
         self.connectButton.setText('Disconnect' if self.connected else 'Connect')
 
         if self.connected:
-            self.sink.putLog('---- close open {} -----'.format(self.port.port), self.compId)
+            self.sink.putLog('---- open port {} -----'.format(self.port.port), self.compId)
             self.thread.ignoreErrors = False
             self.port.open()
 
@@ -112,7 +117,7 @@ class _ReaderThread(QtCore.QThread):
                 try:
                     compId = self.parent.compId
                     value = self.parent.port.readline().decode().rstrip('\n\r')
-                    if self.parent.plotCheckBox.isChecked():
+                    if self.parent.plot:
                         types = 'p'
                     else:
                         types = None
