@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
 class Logger(QDialog):
-    def __init__(self, compId, sink):
+    def __init__(self, compId, sink, instanceId=0):
         super().__init__()
 
         self.writer = None

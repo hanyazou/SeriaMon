@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QTextCursor
 
 class TextViewer(QWidget):
-    def __init__(self, compId, sink):
+    def __init__(self, compId, sink, instanceId=0):
         super().__init__()
 
         self.textEdit = QPlainTextEdit()
