@@ -13,14 +13,14 @@ class UartReader(QWidget):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__()
 
-        self._initPreferences('seriamon.uartreader.{}.'.format(instanceId),
-                              [[ 's', 'portname', None ],
-                               [ 'b', 'plot', False ],
-                               [ 'i', 'baudrate', 9600 ],
-                               [ 'i', 'bytesize', 1 ],
-                               [ 's', 'parity', 1 ],
-                               [ 'f', 'stopbits', 1 ],
-                               [ 'b', 'connected', False ]])
+        self.initPreferences('seriamon.uartreader.{}.'.format(instanceId),
+                             [[ str, 'portname', None ],
+                              [ bool, 'plot', False ],
+                              [ int, 'baudrate', 9600 ],
+                              [ int, 'bytesize', 1 ],
+                              [ str, 'parity', 1 ],
+                              [ float, 'stopbits', 1 ],
+                              [ bool, 'connected', False ]])
 
         self.compId = compId
         self.sink = sink
@@ -56,6 +56,9 @@ class UartReader(QWidget):
         self.stopbitsComboBox.addItem('2', QVariant(serial.STOPBITS_TWO))
         self.stopbitsComboBox.setCurrentText('1')
 
+        self.applyButton = QPushButton('Apply')
+        self.applyButton.clicked.connect(self.reflectFromUi)
+
         self.connectButton = QPushButton()
         self.connectButton.clicked.connect(self._buttonClicked)
         self.connected = True
@@ -75,66 +78,46 @@ class UartReader(QWidget):
         grid.addWidget(self.portnameComboBox, 0, 1, 1, 2)
         grid.addWidget(self.plotCheckBox, 0, 3)
         grid.addLayout(layout, 1, 1, 1, 4)
+        grid.addWidget(self.applyButton, 2, 3)
         grid.addWidget(self.connectButton, 2, 4)
         self.setLayout(grid)
 
         self.thread.start()
 
     def savePreferences(self, prefs):
-        self._putPreference(prefs, 'portname', self.portname)
-        self._putPreference(prefs, 'plot', int(self.plot))
-        self._putPreference(prefs, 'baudrate', self.baudrate)
-        self._putPreference(prefs, 'bytesize', self.bytesize)
-        self._putPreference(prefs, 'parity', self.parity)
-        self._putPreference(prefs, 'stopbits', self.stopbits)
-        self._putPreference(prefs, 'connected', int(self.connected))
+        for prop in self.preferencePoperties:
+            typ = prop[0]
+            name = prop[1]
+            value = getattr(self, name)
+            if typ == bool:
+                value = int(value)
+            prefs[self.preferenceKeyPrefix + name] = str(value)
 
     def loadPreferences(self, prefs):
-        portname = self._getPreference(prefs, 'portname')
-        if portname:
-            self.portname = portname
-        plot = self._getPreference(prefs, 'plot')
-        if plot:
-            self.plot = bool(int(plot))
-        baudrate = self._getPreference(prefs, 'baudrate')
-        if baudrate:
-            self.baudrate = int(baudrate)
-        bytesize = self._getPreference(prefs, 'bytesize')
-        if bytesize:
-            self.bytesize = int(bytesize)
-        parity = self._getPreference(prefs, 'parity')
-        if parity:
-            self.parity = str(parity)
-        stopbits = self._getPreference(prefs, 'stopbits')
-        if stopbits:
-            self.stopbits =float(stopbits)
-        connected = self._getPreference(prefs, 'connected')
-        if connected:
-            self.connected =bool(int(connected))
-        self._reflectToUi()
+        for prop in self.preferencePoperties:
+            typ = prop[0]
+            name = prop[1]
+            key = self.preferenceKeyPrefix + name
+            if not key in prefs:
+                continue
+            value = str(prefs[key])
+            if not value:
+                continue
+            if typ == bool:
+                value = int(value)
+            setattr(self, name, typ(value))
+        self.reflectToUi()
 
-    def _putPreference(self, prefs, key, value):
-        prefs[self.precerenceKeyPrefix + key] = str(value)
-
-    def _getPreference(self, prefs, key) -> str:
-        key = self.precerenceKeyPrefix + key
-        if key in prefs:
-            return str(prefs[key])
-        else:
-            return None
-
-    def _initPreferences(self, prefix, prefprops):
-        self.precerenceKeyPrefix = prefix
+    def initPreferences(self, prefix, prefprops):
+        self.preferenceKeyPrefix = prefix
         self.preferencePoperties = prefprops
-        self.portname = None
-        self.plot = False
-        self.baudrate = 115200
-        self.bytesize = 1
-        self.parity = 0
-        self.stopbits = 0
-        self.connected = False
+        for prop in prefprops:
+            typ = prop[0]
+            name = prop[1]
+            value = prop[2]
+            setattr(self, name, typ(value))
 
-    def _reflectToUi(self):
+    def reflectToUi(self):
         self.portnameComboBox.setCurrentText(self.portname)
         self.plotCheckBox.setChecked(self.plot)
         index = self.baudrateComboBox.findData(self.baudrate)
@@ -162,7 +145,7 @@ class UartReader(QWidget):
         #
         # self.connectButton.setText('Disconnect' if self.connected else 'Connect')
 
-    def _reflectFromUi(self):
+    def reflectFromUi(self):
         self.portname = self.portnameComboBox.currentText()
         self.plot = self.plotCheckBox.isChecked()
         self.baudrate = self.baudrateComboBox.currentData()
@@ -192,7 +175,7 @@ class UartReader(QWidget):
         self.parityComboBox.setEnabled(not self.connected)
         self.stopbitsComboBox.setEnabled(not self.connected)
         self.connectButton.setText('Disconnect' if self.connected else 'Connect')
-        self._reflectFromUi()
+        self.reflectFromUi()
 
         if self.connected:
             self.sink.putLog('---- open port {} -----'.format(self.port.port), self.compId)
