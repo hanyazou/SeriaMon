@@ -3,6 +3,6 @@ SeriaMon
 
 SeriaMon (Serial Monitor) is a simple serial data monitor with GUI.
 """
-from seriamon.seriamon import mainWindow
+from seriamon.seriamon import SeriaMon
 
-__all__ = ["mainWindow"]
+__all__ = ['SeriaMon']

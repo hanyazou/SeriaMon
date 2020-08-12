@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
 class Logger(QDialog):
-    def __init__(self):
+    def __init__(self, compId, sink):
         super().__init__()
 
         self.writer = None
@@ -38,11 +38,11 @@ class Logger(QDialog):
         grid.setColumnStretch(0, 1)
         self.setLayout(grid)
 
-    def putLog(self, value, sourceId=None, op=None, timestamp=None):
-        if not op:
-            op = '-'
+    def putLog(self, value, compId=None, types=None, timestamp=None):
+        if not types:
+            types = '-'
         if self.writer:
-            self.writer.write('{} {} {} {}\n'.format(timestamp, sourceId, op, value))
+            self.writer.write('{} {} {} {}\n'.format(timestamp, compId, types, value))
             self.writer.flush()
 
     def setup(self):

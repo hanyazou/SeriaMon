@@ -6,8 +6,8 @@ from PyQt5.QtWidgets import *
 import qwt as Qwt
 
 class Plotter(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, compId, sink):
+        super().__init__()
 
         self.MAXSAMPLES = 10000
         self.width = 600.0
@@ -44,7 +44,7 @@ class Plotter(QWidget):
         self.setLayout(grid)
         self.update()
 
-    def putLog(self, value, sourceId, op, timestamp):
+    def putLog(self, value, compId, types, timestamp):
         try:
             values = [float(v.split(':')[-1]) for v in value.split()]
             self.insert(timestamp.timestamp(), values)

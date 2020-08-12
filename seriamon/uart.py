@@ -8,7 +8,7 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QTextCursor
 
-class serialReaderThread(QtCore.QThread):
+class ReaderThread(QtCore.QThread):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -19,13 +19,13 @@ class serialReaderThread(QtCore.QThread):
         while self.stayAlive:
             if self.parent.port.is_open:
                 try:
-                    sourceId = self.parent.sourceId
+                    compId = self.parent.compId
                     value = self.parent.port.readline().decode().rstrip('\n\r')
                     if self.parent.plotCheckBox.isChecked():
-                        op = 'p'
+                        types = 'p'
                     else:
-                        op = None
-                    self.parent.logger.putLog(value, sourceId, op)
+                        types = None
+                    self.parent.sink.putLog(value, compId, types)
                 except Exception as e:
                     if not self.ignoreErrors:
                         print(e)
@@ -33,14 +33,14 @@ class serialReaderThread(QtCore.QThread):
             else:
                 self.msleep(100)
 
-class serialReader(QWidget):
+class UartReader(QWidget):
 
-    def __init__(self, sourceId, logger):
+    def __init__(self, compId, sink):
         super().__init__()
 
-        self.sourceId = sourceId
-        self.logger = logger
-        self.serialReaderThread = serialReaderThread(self)
+        self.compId = compId
+        self.sink = sink
+        self.thread = ReaderThread(self)
         self.port = serial.Serial()
 
         self.portComboBox = QComboBox()
@@ -94,15 +94,15 @@ class serialReader(QWidget):
         grid.addWidget(self.connectButton, 2, 4)
         self.setLayout(grid)
 
-        self.serialReaderThread.start()
+        self.thread.start()
 
     def buttonClicked(self):
         sender = self.sender()
 
         if self.port.is_open:
-            self.serialReaderThread.ignoreErrors = True
+            self.thread.ignoreErrors = True
             self.port.close()
-            self.logger.putLog('---- close port {} -----'.format(self.port.port), self.sourceId)
+            self.sink.putLog('---- close port {} -----'.format(self.port.port), self.compId)
 
         self.port.port = self.portComboBox.currentText()
         self.port.baudrate = int(self.baudrateComboBox.currentText())
@@ -120,6 +120,6 @@ class serialReader(QWidget):
         self.connectButton.setText('Disconnect' if self.connected else 'Connect')
 
         if self.connected:
-            self.logger.putLog('---- close open {} -----'.format(self.port.port), self.sourceId)
-            self.serialReaderThread.ignoreErrors = False
+            self.sink.putLog('---- close open {} -----'.format(self.port.port), self.compId)
+            self.thread.ignoreErrors = False
             self.port.open()

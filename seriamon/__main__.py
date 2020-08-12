@@ -1,13 +1,4 @@
-import sys
-import seriamon
-from PyQt5.QtWidgets import QApplication
-
-def main():
-    app = QApplication([])
-    window = seriamon.mainWindow()
-    window.setWindowTitle('Serial Monitor')
-    sys.exit(app.exec_())
-
+from seriamon import *
 
 if __name__ == '__main__':
-    main()
+    SeriaMon().run()

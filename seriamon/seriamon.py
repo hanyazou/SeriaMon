@@ -5,10 +5,10 @@ from datetime import datetime
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
-from seriamon import plotter
-from seriamon import reader
-from seriamon import viewer
-from seriamon import logger
+from .plotter import Plotter
+from .uart import UartReader
+from .text import TextViewer
+from .logger import Logger
 
 class mainWindow(QMainWindow):
 
@@ -26,23 +26,30 @@ class mainWindow(QMainWindow):
         self.serialPortSignal.connect(self.handler)
 
         """
+           create components
+        """
+        id = 0
+        self.uartReaders = []
+        for i in range(0, self.NUMPORTS):
+            self.uartReaders.append(UartReader(compId=str(id), sink=self))
+            id += 1
+        self.plotter = Plotter(compId=str(id), sink=self)
+        id += 1
+        self.textViewer = TextViewer(compId=str(id), sink=self)
+        id += 1
+        self.logger = Logger(compId=str(id), sink=self)
+        id += 1
+
+        """
            widgets
         """
-        self.readers = []
-        for i in range(0, self.NUMPORTS):
-            self.readers.append(reader.serialReader(sourceId=str(i), logger=self))
-
-        self.plotter = plotter.Plotter()
-        self.viewer = viewer.Viewer()
-        self.logger = logger.Logger()
-
         self.tabs = QTabWidget()
         for i in range(0, self.NUMPORTS):
-            self.tabs.addTab(self.readers[i], 'Port {}'.format(i))
+            self.tabs.addTab(self.uartReaders[i], 'Port {}'.format(i))
 
         grid = QGridLayout()
         grid.addWidget(self.plotter, 0, 0, 1, 7)
-        grid.addWidget(self.viewer, 1, 0, 1, 7)
+        grid.addWidget(self.textViewer, 1, 0, 1, 7)
         grid.addWidget(self.tabs, 2, 0, 1, 7, alignment=QtCore.Qt.AlignRight)
         grid.setRowStretch(0, 1)
         grid.setRowStretch(1, 1)
@@ -63,24 +70,39 @@ class mainWindow(QMainWindow):
 
         self.show()
 
-    def putLog(self, value, sourceId=None, op=None, timestamp=None):
-        if not sourceId:
-            sourceId = '?'
-        if not op:
-            op = ''
+    def putLog(self, value, compId=None, types=None, timestamp=None):
+        if not compId:
+            compId = '?'
+        if not types:
+            types = ''
         if not timestamp:
             timestamp = datetime.now()
-        self.queue.put([value, sourceId, op, timestamp ])
+        self.queue.put([value, compId, types, timestamp ])
         self.serialPortSignal.emit('s')
 
     def handler(self, msg):
         while not self.queue.empty():
             item = self.queue.get()
             value = item[0]
-            sourceId = item[1]
-            op = item[2]
+            compId = item[1]
+            types = item[2]
             timestamp = item[3]
-            self.viewer.putLog(value, sourceId, op, timestamp)
-            if 'p' in op:
-                self.plotter.putLog(value, sourceId, op, timestamp)
-            self.logger.putLog(value, sourceId, op, timestamp)
+            self.textViewer.putLog(value, compId, types, timestamp)
+            if 'p' in types:
+                self.plotter.putLog(value, compId, types, timestamp)
+            self.logger.putLog(value, compId, types, timestamp)
+
+
+class SeriaMon:
+    def __init__(self):
+        pass
+
+    def run(self):
+        app = QApplication([])
+        window = mainWindow()
+        window.setWindowTitle('Serial Monitor')
+        sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    SeriaMon().run()

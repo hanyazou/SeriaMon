@@ -2,9 +2,9 @@ import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QTextCursor
 
-class Viewer(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+class TextViewer(QWidget):
+    def __init__(self, compId, sink):
+        super().__init__()
 
         self.textEdit = QPlainTextEdit()
         self.textEdit.setReadOnly(True)
@@ -19,26 +19,26 @@ class Viewer(QWidget):
         self.timestampCheckBox = QCheckBox('timestamp')
         self.timestampCheckBox.setChecked(True)
 
-        self.sourceIdCheckBox = QCheckBox('port id')
-        self.sourceIdCheckBox.setChecked(False)
+        self.compIdCheckBox = QCheckBox('port id')
+        self.compIdCheckBox.setChecked(False)
 
         grid = QGridLayout()
         grid.addWidget(self.textEdit, 0, 0, 1, 7)
         grid.addWidget(self.autoScrollCheckBox, 1, 4)
         grid.addWidget(self.timestampCheckBox, 1, 5)
-        grid.addWidget(self.sourceIdCheckBox, 1, 6)
+        grid.addWidget(self.compIdCheckBox, 1, 6)
         grid.setRowStretch(0, 1)
         grid.setColumnStretch(0, 1)
 
         self.setLayout(grid)
 
-    def putLog(self, value, sourceId, op, timestamp):
+    def putLog(self, value, compId, types, timestamp):
         cursor = QTextCursor(self.textEdit.document())
         cursor.movePosition(QTextCursor.End)
         if self.timestampCheckBox.isChecked():
             cursor.insertText("{} ".format(timestamp.isoformat(sep=' ', timespec='milliseconds')))
-        if self.sourceIdCheckBox.isChecked():
-            cursor.insertText('{} '.format(sourceId))
+        if self.compIdCheckBox.isChecked():
+            cursor.insertText('{} '.format(compId))
         cursor.insertText('{}\n'.format(value))
         if self.autoScrollCheckBox.isChecked():
             scrollbar = self.textEdit.verticalScrollBar()
