@@ -50,9 +50,6 @@ class UartReader(QWidget, SeriaMonComponent):
                               [ str,    'parity',   'N',    self.parityComboBox ],
                               [ float,  'stopbits', 1,      self.stopbitsComboBox ]])
 
-        self.applyButton = QPushButton('Apply')
-        self.applyButton.clicked.connect(self.reflectFromUi)
-
         self.connectButton = QPushButton()
         self.connectButton.clicked.connect(self._buttonClicked)
         self.connected = True
@@ -72,7 +69,6 @@ class UartReader(QWidget, SeriaMonComponent):
         grid.addWidget(self.portnameComboBox, 0, 1, 1, 2)
         grid.addWidget(self.plotCheckBox, 0, 3)
         grid.addLayout(layout, 1, 1, 1, 4)
-        grid.addWidget(self.applyButton, 2, 3)
         grid.addWidget(self.connectButton, 2, 4)
         self.setLayout(grid)
 
@@ -86,11 +82,12 @@ class UartReader(QWidget, SeriaMonComponent):
             self.port.close()
             self.sink.putLog('---- close port {} -----'.format(self.port.port), self.compId)
 
-        self.port.port = self.portnameComboBox.currentText()
-        self.port.baudrate = self.baudrateComboBox.currentData()
-        self.port.bytesize = self.bytesizeComboBox.currentData()
-        self.port.parity = self.parityComboBox.currentData()
-        self.port.stopbits = self.stopbitsComboBox.currentData()
+        self.reflectFromUi()
+        self.port.port = self.portname
+        self.port.baudrate = self.baudrate
+        self.port.bytesize = self.bytesize
+        self.port.parity = self.parity
+        self.port.stopbits = self.stopbits
 
         self.connected = not self.connected
         self.portnameComboBox.setEnabled(not self.connected)
@@ -100,7 +97,6 @@ class UartReader(QWidget, SeriaMonComponent):
         self.parityComboBox.setEnabled(not self.connected)
         self.stopbitsComboBox.setEnabled(not self.connected)
         self.connectButton.setText('Disconnect' if self.connected else 'Connect')
-        self.reflectFromUi()
 
         if self.connected:
             self.sink.putLog('---- open port {} -----'.format(self.port.port), self.compId)
@@ -120,7 +116,7 @@ class _ReaderThread(QtCore.QThread):
                 try:
                     compId = self.parent.compId
                     value = self.parent.port.readline().decode().rstrip('\n\r')
-                    if self.parent.plotCheckBox.isChecked():
+                    if self.parent.plot:
                         types = 'p'
                     else:
                         types = None

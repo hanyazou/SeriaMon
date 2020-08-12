@@ -7,6 +7,7 @@ class SeriaMonComponent:
         self.sink = sink
 
     def savePreferences(self, prefs):
+        self.reflectFromUi()
         for prop in self.preferencePoperties:
             typ = prop[0]
             name = prop[1]
