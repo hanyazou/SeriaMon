@@ -38,25 +38,32 @@ class SeriaMonComponent:
             typ = prop[0]
             name = prop[1]
             value = prop[2]
-            setattr(self, name, typ(value))
+            if value is None:
+                setattr(self, name, None)
+            else:
+                setattr(self, name, typ(value))
+        self.reflectToUi()
 
     def reflectToUi(self):
         for prop in self.preferencePoperties:
             typ = prop[0]
             name = prop[1]
+            value = getattr(self, name)
             if 4 <= len(prop):
                 widget = prop[3]
             else:
                 widget = None
-            if typ in (str, int, float) and isinstance(widget, QComboBox):
-                index = widget.findData(typ(getattr(self, name)))
+            if value is not None and typ in (str, int, float) and isinstance(widget, QComboBox):
+                index = widget.findData(typ(value))
                 if 0 <= index:
                     widget.setCurrentIndex(index)
                 else:
                     print('WARNING: failed to reflect {} to UI'.format(name))
-            elif typ is bool and isinstance(widget, QCheckBox):
-                widget.setChecked(typ(getattr(self, name)))
-            elif not widget is None:
+            elif value is not None and typ is bool and isinstance(widget, QCheckBox):
+                widget.setChecked(typ(value))
+            elif value is not None and typ in (str, int, float) and isinstance(widget, QLineEdit):
+                widget.setText(typ(value))
+            elif widget is not None and value is not None:
                 print('WARNING: failed to reflect {} to UI'.format(name))
 
     def reflectFromUi(self):
@@ -71,5 +78,7 @@ class SeriaMonComponent:
                 setattr(self, name, typ(widget.currentData()))
             elif typ is bool and isinstance(widget, QCheckBox):
                 setattr(self, name, typ(widget.isChecked()))
+            elif typ in (str, int, float) and isinstance(widget, QLineEdit):
+                setattr(self, name, typ(widget.text()))
             elif not widget is None:
                 print('WARNING: failed to reflect {} from UI'.format(name))

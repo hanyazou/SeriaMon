@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QTextCursor
+
 from .component import SeriaMonComponent
 
 class UartReader(QWidget, SeriaMonComponent):

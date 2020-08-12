@@ -5,6 +5,7 @@ from datetime import datetime
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
+from .component import SeriaMonComponent
 from .plotter import Plotter
 from .uart import UartReader
 from .text import TextViewer
@@ -30,15 +31,20 @@ class mainWindow(QMainWindow):
            create components
         """
         id = 0
+        self.components = []
         self.uartReaders = []
         for i in range(0, self.NUMPORTS):
             self.uartReaders.append(UartReader(compId=id, sink=self, instanceId=i))
+            self.components.append(self.uartReaders[i])
             id += 1
         self.plotter = Plotter(compId=id, sink=self)
+        self.components.append(self.plotter)
         id += 1
         self.textViewer = TextViewer(compId=id, sink=self)
+        self.components.append(self.textViewer)
         id += 1
         self.logger = Logger(compId=id, sink=self)
+        self.components.append(self.logger)
         id += 1
 
         self._loadPreferences()
@@ -89,9 +95,10 @@ class mainWindow(QMainWindow):
 
     def _savePreferences(self):
         preferences = {}
-        for i in range(0, self.NUMPORTS):
+        for comp in self.components:
             try:
-                self.uartReaders[i].savePreferences(preferences)
+                if isinstance(comp, SeriaMonComponent):
+                    comp.savePreferences(preferences)
             except Exception as e:
                 print(e)
         with open(self.prefFilename, 'w') as writer:
@@ -114,9 +121,10 @@ class mainWindow(QMainWindow):
             reader.close()
         except Exception as e:
             print(e)
-        for i in range(0, self.NUMPORTS):
+        for comp in self.components:
             try:
-                self.uartReaders[i].loadPreferences(preferences)
+                if isinstance(comp, SeriaMonComponent):
+                    comp.loadPreferences(preferences)
             except Exception as e:
                 print(e)
 
