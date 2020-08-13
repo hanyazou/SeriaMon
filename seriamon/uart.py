@@ -100,7 +100,7 @@ class UartReader(QWidget, SeriaMonComponent):
     def _buttonClicked(self):
         self.reflectFromUi()
         self.connect = not self.connect
-        self.update()
+        self.updatePreferences()
 
 class _ReaderThread(QtCore.QThread):
     def __init__(self, parent):
@@ -108,7 +108,7 @@ class _ReaderThread(QtCore.QThread):
         self.parent = parent
         self.stayAlive = True
         self.generation = parent.generation
-        self.port = serial.Serial(timeout=0.1)  # timeout is 100ms
+        self.port = serial.Serial(timeout=0.5)  # timeout is 500ms
 
     def run(self):
         parent = self.parent
@@ -151,7 +151,7 @@ class _ReaderThread(QtCore.QThread):
                         error = False
                     except Exception as e:
                         error = True
-                        self.msleep(500)
+                        self.msleep(1000)
                         continue
                     parent.sink.putLog('----  open port {} -----'.
                                        format(self.port.port), parent.compId)
@@ -175,7 +175,7 @@ class _ReaderThread(QtCore.QThread):
                     self.parent.sink.putLog(value, parent.compId, types)
                 except Exception as e:
                     error = True
-                    self.msleep(500)
+                    self.msleep(1000)
                     continue
             else:
-                self.msleep(100)
+                self.msleep(1000)
