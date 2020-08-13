@@ -98,8 +98,7 @@ class Plotter(QWidget):
 
     def _insert(self, x, y):
         if not self.starttime:
-            self.starttime = math.floor(datetime.now().timestamp())
-            print('start time = {}'.format(self.starttime))
+            self.starttime = x
 
         if self.MAXSAMPLES <= len(self.x):
             self.x.pop(0)

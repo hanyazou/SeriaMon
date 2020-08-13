@@ -9,7 +9,7 @@ from .component import SeriaMonComponent
 from .plotter import Plotter
 from .uart import UartReader
 from .text import TextViewer
-from .logger import Logger
+from .logger import Logger, LogImporter
 
 class mainWindow(QMainWindow):
 
@@ -46,6 +46,9 @@ class mainWindow(QMainWindow):
         self.logger = Logger(compId=id, sink=self)
         self.components.append(self.logger)
         id += 1
+        self.logImporter = LogImporter(compId=id, sink=self)
+        self.components.append(self.logImporter)
+        id += 1
 
         self._loadPreferences()
 
@@ -77,12 +80,15 @@ class mainWindow(QMainWindow):
         """
            menu
         """
-        logmenu = QAction('&Log...', self)
-        logmenu.triggered.connect(self.logger.setup)
-
         menubar = self.menuBar()
         filemenu = menubar.addMenu('&File')
-        filemenu.addAction(logmenu)
+
+        menu = QAction('&Log...', self)
+        menu.triggered.connect(self.logger.setupDialog().exec)
+        filemenu.addAction(menu)
+        menu = QAction('&Import...', self)
+        menu.triggered.connect(self.logImporter.setupDialog().exec)
+        filemenu.addAction(menu)
 
         self.show()
 

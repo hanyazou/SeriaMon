@@ -50,11 +50,8 @@ class Logger(QDialog, SeriaMonComponent):
             self.writer.write('{} {} {} {}\n'.format(timestamp, compId, types, value))
             self.writer.flush()
 
-    def setup(self):
-        self.fileOpenError = None
-        self.exec()
-        if self.fileOpenError:
-            QMessageBox.critical(self, "Error", '{}'.format(self.fileOpenError))
+    def setupDialog(self):
+        return self
 
     def _onSaveStateChanged(self):
         doWrite = self.saveCheckBox.isChecked()
@@ -81,7 +78,7 @@ class Logger(QDialog, SeriaMonComponent):
                     print('new log file is {}'.format(filename))
                 except Exception as e:
                     newWriter = None
-                    self.fileOpenError = e
+                    QMessageBox.critical(self, "Error", '{}'.format(e))
             oldWriter = self.writer
             self.writer = newWriter
             if oldWriter:
@@ -90,6 +87,89 @@ class Logger(QDialog, SeriaMonComponent):
         self.filename = filename
         self.doWrite = doWrite
         self.close()
+
+    def _onCancel(self):
+        self.reflectToUi()
+        self.close()
+
+
+class LogImporter(QDialog, SeriaMonComponent):
+    def __init__(self, compId, sink, instanceId=0):
+        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+
+        self.setObjectName('LogImporter')
+
+        self.sink = sink
+
+        self.filename = os.path.join(os.path.expanduser('~'), 'Documents', 'seriamon.log')
+        self.setWindowTitle('Import log')
+
+        self.filenameTextEdit = QLineEdit()
+        width = self.filenameTextEdit.fontMetrics().boundingRect(self.filename+'____').width()
+        self.filenameTextEdit.setMinimumWidth(width)
+
+        self.selectFileButton = QPushButton('...')
+        self.selectFileButton.clicked.connect(self._selectFile)
+
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttons.accepted.connect(self._onOK)
+        self.buttons.rejected.connect(self._onCancel)
+
+        grid = QGridLayout()
+        grid.addWidget(self.filenameTextEdit, 0, 0, 1, 6)
+        grid.addWidget(self.selectFileButton, 0, 6)
+        grid.addWidget(self.buttons, 1, 0, 1, 7, alignment=QtCore.Qt.AlignRight)
+        grid.setColumnStretch(0, 1)
+        self.setLayout(grid)
+
+        self.initPreferences('seriamon.logger.{}.'.format(instanceId),
+                             [[ str,    'filename', self.filename, self.filenameTextEdit ]])
+
+    def setupDialog(self):
+        return self
+
+    def _selectFile(self):
+        filename = self.filenameTextEdit.text()
+        filename,_ = QFileDialog.getSaveFileName(self, 'Open file', filename,
+                                                 "Log files (*.log *.txt)")
+        if filename:
+            self.filenameTextEdit.setText(filename)
+
+    def _onOK(self):
+        self.reflectFromUi()
+        self.filename
+        try:
+            reader = open(self.filename, 'r')
+            print('read log from file {}'.format(self.filename))
+            line = None
+            lineCount = 0
+            while True:
+                line = reader.readline().strip('\n\r')
+                if line == '':
+                    break
+                try:
+                    terms = []
+                    curPos = 0
+                    for i in range(4):
+                        nextPos = line.find(' ', curPos)
+                        if nextPos < -1:
+                            continue
+                        terms.append(line[curPos:nextPos])
+                        curPos = nextPos + 1
+                    terms.append(line[curPos:])
+                    lineCount += 1
+                    timestamp = datetime.strptime('{} {}'.format(terms[0], terms[1]),
+                                                  '%Y-%m-%d %H:%M:%S.%f')
+                    print('{} {} {}'.format(lineCount, timestamp, terms[2:]))
+                    self.sink.putLog(value=terms[4], compId = int(terms[2]), types=terms[3],
+                                     timestamp=timestamp)
+                except Exception as e:
+                    print(e)
+        except Exception as e:
+            reader = None
+            QMessageBox.critical(self, "Error", '{}'.format(e))
+        finally:
+            self.close()
 
     def _onCancel(self):
         self.reflectToUi()
