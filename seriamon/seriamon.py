@@ -54,7 +54,14 @@ class mainWindow(QMainWindow):
         """
         self.tabs = QTabWidget()
         for i in range(0, self.NUMPORTS):
-            self.tabs.addTab(self.uartReaders[i], 'Port {}'.format(i))
+            ur = self.uartReaders[i]
+            ur._seriamon_data = {}
+            compData = ur._seriamon_data
+            compData['name'] = 'Port {}'.format(i)
+            compData['tabs'] = self.tabs
+            tabIndex = self.tabs.addTab(self.uartReaders[i], compData['name'])
+            compData['tabIndex'] = tabIndex
+            ur.updated.connect(self._onUpdatedUartReader)
 
         grid = QGridLayout()
         grid.addWidget(self.plotter, 0, 0, 1, 7)
@@ -140,6 +147,19 @@ class mainWindow(QMainWindow):
                 self.plotter.putLog(value, compId, types, timestamp)
             self.logger.putLog(value, compId, types, timestamp)
 
+    def _onUpdatedUartReader(self, component):
+        statusMap = { SeriaMonComponent.STATUS_NONE:     '',
+                      SeriaMonComponent.STATUS_ACTIVE:   '\U0001F7E2 ', # Green
+                      SeriaMonComponent.STATUS_DEACTIVE: '',
+                      SeriaMonComponent.STATUS_WAITING:  '\U0001F7E1 ', # Yellow
+                      SeriaMonComponent.STATUS_ERROR:    '\U0001F534 '} # Red
+        compData = component._seriamon_data
+        status = component.getStatus()
+        if status in statusMap:
+            status = statusMap[status]
+        else:
+            status = ''
+        compData['tabs'].setTabText(compData['tabIndex'], '{} {}'.format(status, compData['name']))
 
 class SeriaMon:
     def __init__(self):

@@ -115,6 +115,7 @@ class UartReader(QWidget, SeriaMonComponent):
             self.sink.putLog('---- open port {} -----'.format(self.port.port), self.compId)
             self.thread.ignoreErrors = False
             self.port.open()
+        self.setStatus(self.STATUS_ACTIVE if self.connected else self.STATUS_DEACTIVE)
 
 class _ReaderThread(QtCore.QThread):
     def __init__(self, parent):

@@ -1,10 +1,27 @@
 from PyQt5.QtWidgets import *
+from PyQt5 import QtCore
 
 class SeriaMonComponent:
+
+    STATUS_NONE = 0
+    STATUS_ACTIVE = 1
+    STATUS_DEACTIVE = 2
+    STATUS_WAITING = 3
+    STATUS_ERROR = 4
+
+    updated = QtCore.pyqtSignal(object)
 
     def __init__(self, compId, sink, instanceId=0):
         self.compId = compId
         self.sink = sink
+        self._seriamoncomponent_status = self.STATUS_NONE
+
+    def setStatus(self, status):
+        self._seriamoncomponent_status = status
+        self.updated.emit(self)
+
+    def getStatus(self):
+        return self._seriamoncomponent_status
 
     def savePreferences(self, prefs):
         self.reflectFromUi()
