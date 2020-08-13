@@ -137,7 +137,8 @@ class LogImporter(QDialog, SeriaMonComponent):
 
     def _onOK(self):
         self.reflectFromUi()
-        self.filename
+        self.sink.stopLog()
+        self.sink.clearLog()
         try:
             reader = open(self.filename, 'r')
             print('read log from file {}'.format(self.filename))
@@ -160,7 +161,6 @@ class LogImporter(QDialog, SeriaMonComponent):
                     lineCount += 1
                     timestamp = datetime.strptime('{} {}'.format(terms[0], terms[1]),
                                                   '%Y-%m-%d %H:%M:%S.%f')
-                    print('{} {} {}'.format(lineCount, timestamp, terms[2:]))
                     self.sink.putLog(value=terms[4], compId = int(terms[2]), types=terms[3],
                                      timestamp=timestamp)
                 except Exception as e:

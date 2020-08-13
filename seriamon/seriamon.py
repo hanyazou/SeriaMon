@@ -102,6 +102,18 @@ class mainWindow(QMainWindow):
         self.queue.put([value, compId, types, timestamp ])
         self.serialPortSignal.emit('s')
 
+    def stopLog(self):
+        for comp in self.components:
+            method = getattr(comp, 'stopLog', None)
+            if method:
+                method()
+
+    def clearLog(self):
+        for comp in self.components:
+            method = getattr(comp, 'clearLog', None)
+            if method:
+                method()
+
     def closeEvent(self, event):
         self._savePreferences()
         QMainWindow.closeEvent(self, event)

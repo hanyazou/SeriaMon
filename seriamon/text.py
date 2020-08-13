@@ -50,3 +50,6 @@ class TextViewer(QWidget, SeriaMonComponent):
         if self.autoScrollCheckBox.isChecked():
             scrollbar = self.textEdit.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum() - 1)
+
+    def clearLog(self):
+        self.textEdit.clear()

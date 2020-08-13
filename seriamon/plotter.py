@@ -52,6 +52,15 @@ class Plotter(QWidget):
         except Exception as e:
             pass
 
+    def clearLog(self):
+        self.x = []
+        self.y = []
+        for curve in self.curve:
+            curve.detach()
+        self.curve = []
+        self.starttime = None
+        self._update()
+
     def _roundup(self, num):
         l = math.ceil(math.log10(num))
         num = num / (10 ** l)
@@ -120,6 +129,7 @@ class Plotter(QWidget):
     def _update(self):
         for i in range(0, len(self.curve)):
             self.curve[i].setData(self.x, self.y[i])
-        self.plot.setAxisScale(Qwt.QwtPlot.xBottom, max(self.xmin, self.xmax - self.width), self.xmax, self.xstep)
+        self.plot.setAxisScale(Qwt.QwtPlot.xBottom,
+                               max(self.xmin, self.xmax - self.width), self.xmax, self.xstep)
         self.plot.setAxisScale(Qwt.QwtPlot.yLeft, self.ymin, self.ymax, self.ystep * 2)
         self.plot.replot()
