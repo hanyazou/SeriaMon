@@ -49,17 +49,22 @@ class Plotter(QDialog, SeriaMonComponent):
         """
         self.showGridCheckBox = QCheckBox('show grid')
         self.showGridCheckBox.stateChanged.connect(self._update)
+        self.showLegendCheckBox = QCheckBox('show legend')
+        self.showLegendCheckBox.stateChanged.connect(self._update)
 
         grid = QGridLayout()
         grid.addWidget(self.showGridCheckBox, 0, 0)
+        grid.addWidget(self.showLegendCheckBox, 1, 0)
         grid.setRowStretch(0, 1)
         grid.setColumnStretch(0, 1)
 
         self._setupTabWidget = QWidget()
         self._setupTabWidget.setLayout(grid)
+        self.legend = Qwt.QwtLegend()
 
         self.initPreferences('seriamon.plotter.{}.'.format(instanceId),
-                             [[ bool,   'showGrid',    False,  self.showGridCheckBox ]])
+                             [[ bool,   'showGrid',    False,  self.showGridCheckBox ],
+                              [ bool,   'showLegend',  False,  self.showLegendCheckBox ]])
 
         grid = QGridLayout()
         grid.addWidget(self.plot, 0, 0, 1, 1)
@@ -160,6 +165,10 @@ class Plotter(QDialog, SeriaMonComponent):
             self.grid.attach(self.plot)
         else:
             self.grid.detach()
+        if self.showLegend and self.plot.legend() is None:
+            self.plot.insertLegend(self.legend, Qwt.QwtPlot.TopLegend)
+        if self.plot.legend() is not None:
+            self.plot.legend().contentsWidget().setVisible(self.showLegend)
 
         for i in range(0, len(self.curve)):
             self.curve[i].setData(self.x, self.y[i])
