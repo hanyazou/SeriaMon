@@ -16,6 +16,8 @@ class UartReader(QWidget, SeriaMonComponent):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
+        self.setObjectName('Port {}'.format(instanceId))
+
         self.generation = 0
         self.thread = _ReaderThread(self)
 
@@ -72,6 +74,9 @@ class UartReader(QWidget, SeriaMonComponent):
         self.setLayout(grid)
 
         self.thread.start()
+
+    def setupWidget(self):
+        return self
 
     def stopLog(self):
         self.connect = False

@@ -1,13 +1,18 @@
 import sys
 import math
 from datetime import datetime
-from PyQt5 import QtGui
+from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import *
 import qwt as Qwt
+import PyQt5 as Qt
 
-class Plotter(QWidget):
+from .component import SeriaMonComponent
+
+class Plotter(QDialog, SeriaMonComponent):
     def __init__(self, compId, sink, instanceId=0):
-        super().__init__()
+        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+
+        self.setObjectName('Plotter')
 
         self.MAXSAMPLES = 10000
         self.width = 600.0
@@ -36,6 +41,26 @@ class Plotter(QWidget):
         self.plot.setCanvasBackground(QtGui.QColor('#FFFfFF'))
         self.plot.setAxisTitle(Qwt.QwtPlot.xBottom, 'time')
 
+        self.grid = Qwt.QwtPlotGrid()
+        self.grid.setPen(QtGui.QPen(QtCore.Qt.gray, 0, QtCore.Qt.DotLine))
+
+        """
+           tabbed setup widget
+        """
+        self.showGridCheckBox = QCheckBox('show grid')
+        self.showGridCheckBox.stateChanged.connect(self._update)
+
+        grid = QGridLayout()
+        grid.addWidget(self.showGridCheckBox, 0, 0)
+        grid.setRowStretch(0, 1)
+        grid.setColumnStretch(0, 1)
+
+        self._setupTabWidget = QWidget()
+        self._setupTabWidget.setLayout(grid)
+
+        self.initPreferences('seriamon.plotter.{}.'.format(instanceId),
+                             [[ bool,   'showGrid',    False,  self.showGridCheckBox ]])
+
         grid = QGridLayout()
         grid.addWidget(self.plot, 0, 0, 1, 1)
         grid.setRowStretch(0, 1)
@@ -43,6 +68,9 @@ class Plotter(QWidget):
 
         self.setLayout(grid)
         self._update()
+
+    def setupWidget(self):
+        return self._setupTabWidget
 
     def putLog(self, value, compId, types, timestamp):
         try:
@@ -127,6 +155,12 @@ class Plotter(QWidget):
             self._updateRangeY(y[i])
 
     def _update(self):
+        self.reflectFromUi()
+        if self.showGrid:
+            self.grid.attach(self.plot)
+        else:
+            self.grid.detach()
+
         for i in range(0, len(self.curve)):
             self.curve[i].setData(self.x, self.y[i])
         self.plot.setAxisScale(Qwt.QwtPlot.xBottom,
