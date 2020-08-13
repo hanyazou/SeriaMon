@@ -73,8 +73,8 @@ class UartReader(QWidget, SeriaMonComponent):
 
         self.thread.start()
 
-    def update(self):
-        super().update()
+    def updatePreferences(self):
+        super().updatePreferences()
         self.portnameComboBox.setEnabled(not self.connect)
         self.plotCheckBox.setEnabled(not self.connect)
         self.baudrateComboBox.setEnabled(not self.connect)
