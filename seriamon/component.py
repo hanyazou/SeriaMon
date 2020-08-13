@@ -46,7 +46,7 @@ class SeriaMonComponent:
             if typ == bool:
                 value = int(value)
             setattr(self, name, typ(value))
-        self.reflectToUi()
+        self.update()
 
     def initPreferences(self, prefix, prefprops):
         self.preferenceKeyPrefix = prefix
@@ -59,6 +59,9 @@ class SeriaMonComponent:
                 setattr(self, name, None)
             else:
                 setattr(self, name, typ(value))
+        self.reflectToUi()
+
+    def update(self):
         self.reflectToUi()
 
     def reflectToUi(self):

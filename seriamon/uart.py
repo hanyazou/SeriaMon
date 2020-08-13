@@ -16,8 +16,8 @@ class UartReader(QWidget, SeriaMonComponent):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
+        self.generation = 0
         self.thread = _ReaderThread(self)
-        self.port = serial.Serial()
 
         self.portnameComboBox = ComboBox()
         self.portnameComboBox.aboutToBeShown.connect(self._updatePortnames)
@@ -48,12 +48,11 @@ class UartReader(QWidget, SeriaMonComponent):
                               [ int,    'baudrate', 9600,   self.baudrateComboBox ],
                               [ int,    'bytesize', 8,      self.bytesizeComboBox ],
                               [ str,    'parity',   'N',    self.parityComboBox ],
-                              [ float,  'stopbits', 1,      self.stopbitsComboBox ]])
+                              [ float,  'stopbits', 1,      self.stopbitsComboBox ],
+                              [ bool,   'connect',  False,  None ]])
 
         self.connectButton = QPushButton()
         self.connectButton.clicked.connect(self._buttonClicked)
-        self.connected = True
-        self._buttonClicked()
 
         layout = QHBoxLayout()
         layout.addWidget(QLabel('baud rate:'))
@@ -74,6 +73,17 @@ class UartReader(QWidget, SeriaMonComponent):
 
         self.thread.start()
 
+    def update(self):
+        super().update()
+        self.portnameComboBox.setEnabled(not self.connect)
+        self.plotCheckBox.setEnabled(not self.connect)
+        self.baudrateComboBox.setEnabled(not self.connect)
+        self.bytesizeComboBox.setEnabled(not self.connect)
+        self.parityComboBox.setEnabled(not self.connect)
+        self.stopbitsComboBox.setEnabled(not self.connect)
+        self.connectButton.setText('Disconnect' if self.connect else 'Connect')
+        self.generation += 1
+
     def _updatePortnames(self):
         currentText = self.portnameComboBox.currentText()
         portnames = [v[0] for v in serial.tools.list_ports.comports(include_links=True)]
@@ -88,56 +98,84 @@ class UartReader(QWidget, SeriaMonComponent):
         self.portnameComboBox.setCurrentText(currentText)
 
     def _buttonClicked(self):
-        sender = self.sender()
-
-        if self.port.is_open:
-            self.thread.ignoreErrors = True
-            self.port.close()
-            self.sink.putLog('---- close port {} -----'.format(self.port.port), self.compId)
-
         self.reflectFromUi()
-        self.port.port = self.portname
-        self.port.baudrate = self.baudrate
-        self.port.bytesize = self.bytesize
-        self.port.parity = self.parity
-        self.port.stopbits = self.stopbits
-
-        self.connected = not self.connected
-        self.portnameComboBox.setEnabled(not self.connected)
-        self.plotCheckBox.setEnabled(not self.connected)
-        self.baudrateComboBox.setEnabled(not self.connected)
-        self.bytesizeComboBox.setEnabled(not self.connected)
-        self.parityComboBox.setEnabled(not self.connected)
-        self.stopbitsComboBox.setEnabled(not self.connected)
-        self.connectButton.setText('Disconnect' if self.connected else 'Connect')
-
-        if self.connected:
-            self.sink.putLog('---- open port {} -----'.format(self.port.port), self.compId)
-            self.thread.ignoreErrors = False
-            self.port.open()
-        self.setStatus(self.STATUS_ACTIVE if self.connected else self.STATUS_DEACTIVE)
+        self.connect = not self.connect
+        self.update()
 
 class _ReaderThread(QtCore.QThread):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
         self.stayAlive = True
-        self.ignoreErrors = False
+        self.generation = parent.generation
+        self.port = serial.Serial(timeout=0.1)  # timeout is 100ms
 
     def run(self):
+        parent = self.parent
+        error = False
+        prevStatus = parent.STATUS_NONE
+
         while self.stayAlive:
-            if self.parent.port.is_open:
+            """
+                update status indicator
+            """
+            if parent.connect:
+                if self.port.is_open and not error:
+                    status = parent.STATUS_ACTIVE
+                else:
+                    status = parent.STATUS_WAITING
+            else:
+                status = parent.STATUS_DEACTIVE
+            if prevStatus != status:
+                parent.setStatus(status)
+                prevStatus = status
+
+            """try to (re)open the port if
+                 port settings has been changed
+                 connect / disconnect button was clicked
+                errors were reported on serial port
+            """
+            if self.generation != parent.generation or error:
+                if self.port.is_open:
+                    self.port.close()
+                    parent.sink.putLog('---- close port {} -----'.
+                                       format(self.port.port), parent.compId)
+                if self.parent.connect:
+                    self.port.port = parent.portname
+                    self.port.baudrate = parent.baudrate
+                    self.port.bytesize = parent.bytesize
+                    self.port.parity = parent.parity
+                    self.port.stopbits = parent.stopbits
+                    try:
+                        self.port.open()
+                        error = False
+                    except Exception as e:
+                        error = True
+                        self.msleep(500)
+                        continue
+                    parent.sink.putLog('----  open port {} -----'.
+                                       format(self.port.port), parent.compId)
+                    
+                if self.parent.plot:
+                    types = 'p'
+                else:
+                    types = None
+                self.generation = parent.generation
+
+            """
+               read serial port if it is open
+            """
+            if self.port.is_open:
                 try:
-                    compId = self.parent.compId
-                    value = self.parent.port.readline().decode().rstrip('\n\r')
-                    if self.parent.plot:
-                        types = 'p'
-                    else:
-                        types = None
-                    self.parent.sink.putLog(value, compId, types)
+                    value = self.port.readline().decode().rstrip('\n\r')
+                    error = False
+                    if len(value) == 0:
+                        # timeout
+                        continue
+                    self.parent.sink.putLog(value, parent.compId, types)
                 except Exception as e:
-                    if not self.ignoreErrors:
-                        print(e)
-                    self.msleep(100)
+                    error = True
+                    self.msleep(500)
+                    continue
             else:
                 self.msleep(100)
