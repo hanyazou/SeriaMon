@@ -181,6 +181,9 @@ class _ReaderThread(QtCore.QThread):
                     if len(value) == 0:
                         # timeout
                         continue
+                    if not parent.connect:
+                        # connection was closed
+                        continue
                     self.parent.sink.putLog(value, parent.compId, types)
                 except Exception as e:
                     error = True
