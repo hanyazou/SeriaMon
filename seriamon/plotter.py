@@ -3,6 +3,7 @@ import math
 from datetime import datetime
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import *
+from guiqwt.baseplot import BasePlot
 from guiqwt.plot import CurveDialog
 from guiqwt.builder import make
 from guiqwt.curve import CurvePlot, CurveItem
@@ -29,10 +30,7 @@ class Plotter(QDialog, SeriaMonComponent):
             '#000000'  # Black
         ]
 
-        self.starttime = None
-        self.x = []
-        self.y = []
-        self.curves = []
+        self._initLog()
 
         self.plot_window = CurveDialog(edit=False, toolbar=True)
         self.plot = self.plot_window.get_plot()
@@ -42,8 +40,27 @@ class Plotter(QDialog, SeriaMonComponent):
         self.plot_grid = make.grid()
         self.plot.add_item(self.plot_grid)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.plot_window)
+        self.panScrollBar = QScrollBar(QtCore.Qt.Horizontal)
+        self.panScrollBar.valueChanged.connect(self._update_panzoom)
+
+        self.zoomSpinBox = QDoubleSpinBox()
+        self.zoomSpinBox.setRange(1.0, 10.0)
+        self.zoomSpinBox.setStepType(QAbstractSpinBox.AdaptiveDecimalStepType)
+        self.zoomSpinBox.valueChanged.connect(self._update_panzoom)
+
+        self.zoomSlider = QSlider(QtCore.Qt.Horizontal)
+        self.zoomSlider.setRange(1.0, 10.0)
+        self.zoomSlider.setSingleStep(0.01)
+        self.zoomSlider.valueChanged.connect(lambda x:
+                                             self.zoomSpinBox.setValue(self.zoomSlider.value()))
+
+        layout = QGridLayout()
+        layout.addWidget(self.plot_window, 0, 0, 1, 8)
+        layout.addWidget(self.panScrollBar, 1, 0, 1, 6)
+        layout.addWidget(self.zoomSlider, 1, 6)
+        layout.addWidget(self.zoomSpinBox, 1, 7)
+        layout.setRowStretch(0, 1)
+        layout.setColumnStretch(0, 1)
         self.setLayout(layout)
 
         """
@@ -85,12 +102,17 @@ class Plotter(QDialog, SeriaMonComponent):
             pass
 
     def clearLog(self):
+        self.plot.del_items(self.curves)
+        self._initLog()
+        self._update()
+
+    def _initLog(self):
+        self.starttime = None
         self.x = []
         self.y = []
-        self.plot.del_items(self.curves)
         self.curves = []
-        self.starttime = None
-        self._update()
+        self.xmin = None
+        self.xmax = None
 
     def _addCurve(self):
         param = CurveParam()
@@ -104,11 +126,16 @@ class Plotter(QDialog, SeriaMonComponent):
     def _insert(self, x, y):
         if not self.starttime:
             self.starttime = x
+        x -= self.starttime
+        if self.xmin is None or x < self.xmin:
+            self.xmin = x
+        if self.xmax is None or self.xmax < x:
+            self.xmax = x
 
         if self.MAXSAMPLES <= len(self.x):
             self.x.pop(0)
 
-        self.x.append(x - self.starttime)
+        self.x.append(x)
 
         for i in range(len(self.y), len(y)):
             self.y.append([])
@@ -130,4 +157,33 @@ class Plotter(QDialog, SeriaMonComponent):
         for i in range(0, len(self.curves)):
             self.curves[i].set_data(self.x, self.y[i])
 
+        self._update_scroll_range()
         self.plot.replot()
+
+    def _update_panzoom(self):
+        zoom = self.zoomSpinBox.value()
+        self.zoomSlider.setValue(zoom)
+
+        if self.xmin is not None and self.xmax is not None:
+            center = self.panScrollBar.value()
+            width = (self.xmax - self.xmin) / zoom / 2
+            self.log(self.LOG_DEBUG, 'zoom={}, center={}, width={}'.format(zoom, center, width))
+            self.plot.set_axis_limits(BasePlot.X_BOTTOM, center - width, center + width)
+
+        self._update_scroll_range()
+        self.plot.replot()
+
+    def _update_scroll_range(self):
+        if self.xmin is None or self.xmax is None:
+            return
+        zoom = self.zoomSpinBox.value()
+        pagestep = (self.xmax - self.xmin) / zoom
+
+        self.panScrollBar.setPageStep(pagestep)
+        self.panScrollBar.setMinimum(pagestep / 2)
+        self.panScrollBar.setMaximum(self.xmax - self.xmin - pagestep / 2)
+        self.log(self.LOG_DEBUG, 'scroll: {}-{} step={}'.format(
+            self.panScrollBar.minimum(),
+            self.panScrollBar.maximum(),
+            self.panScrollBar.pageStep()))
+            
