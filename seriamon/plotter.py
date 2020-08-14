@@ -3,8 +3,10 @@ import math
 from datetime import datetime
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import *
-import qwt as Qwt
-import PyQt5 as Qt
+from guiqwt.plot import CurveDialog
+from guiqwt.builder import make
+from guiqwt.curve import CurvePlot, CurveItem
+from guiqwt.styles import CurveParam, LineStyleParam
 
 from .component import SeriaMonComponent
 
@@ -27,22 +29,22 @@ class Plotter(QDialog, SeriaMonComponent):
             '#000000'  # Black
         ]
 
-        self.xmin = 0.0
-        self.xmax = 0.0
-        self._updateRangeX(self.width)
-        self.ymin = 0.0
-        self.ymax = 0.0
-        self._updateRangeY(100.0)
         self.starttime = None
         self.x = []
         self.y = []
-        self.curve = []
-        self.plot = Qwt.QwtPlot(self)
-        self.plot.setCanvasBackground(QtGui.QColor('#FFFfFF'))
-        self.plot.setAxisTitle(Qwt.QwtPlot.xBottom, 'time')
+        self.curves = []
 
-        self.grid = Qwt.QwtPlotGrid()
-        self.grid.setPen(QtGui.QPen(QtCore.Qt.gray, 0, QtCore.Qt.DotLine))
+        self.plot_window = CurveDialog(edit=False, toolbar=True)
+        self.plot = self.plot_window.get_plot()
+        self.plot.del_all_items(except_grid=False)
+        self.plot_legend = make.legend("TR")
+        self.plot.add_item(self.plot_legend)
+        self.plot_grid = make.grid()
+        self.plot.add_item(self.plot_grid)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.plot_window)
+        self.setLayout(layout)
 
         """
            tabbed setup widget
@@ -51,27 +53,24 @@ class Plotter(QDialog, SeriaMonComponent):
         self.showGridCheckBox.stateChanged.connect(self._update)
         self.showLegendCheckBox = QCheckBox('show legend')
         self.showLegendCheckBox.stateChanged.connect(self._update)
+        self.showToolsCheckBox = QCheckBox('show tools')
+        self.showToolsCheckBox.stateChanged.connect(self._update)
 
-        grid = QGridLayout()
-        grid.addWidget(self.showGridCheckBox, 0, 0)
-        grid.addWidget(self.showLegendCheckBox, 1, 0)
-        grid.setRowStretch(0, 1)
-        grid.setColumnStretch(0, 1)
+        gridlayout = QGridLayout()
+        gridlayout.addWidget(self.showGridCheckBox, 0, 0)
+        gridlayout.addWidget(self.showLegendCheckBox, 1, 0)
+        gridlayout.addWidget(self.showToolsCheckBox, 2, 0)
+        gridlayout.setRowStretch(0, 1)
+        gridlayout.setColumnStretch(0, 1)
 
         self._setupTabWidget = QWidget()
-        self._setupTabWidget.setLayout(grid)
-        self.legend = Qwt.QwtLegend()
+        self._setupTabWidget.setLayout(gridlayout)
 
         self.initPreferences('seriamon.plotter.{}.'.format(instanceId),
                              [[ bool,   'showGrid',    False,  self.showGridCheckBox ],
-                              [ bool,   'showLegend',  False,  self.showLegendCheckBox ]])
+                              [ bool,   'showLegend',  False,  self.showLegendCheckBox ],
+                              [ bool,   'showTools',   False,  self.showToolsCheckBox ]])
 
-        grid = QGridLayout()
-        grid.addWidget(self.plot, 0, 0, 1, 1)
-        grid.setRowStretch(0, 1)
-        grid.setColumnStretch(0, 1)
-
-        self.setLayout(grid)
         self._update()
 
     def setupWidget(self):
@@ -88,55 +87,19 @@ class Plotter(QDialog, SeriaMonComponent):
     def clearLog(self):
         self.x = []
         self.y = []
-        for curve in self.curve:
-            curve.detach()
-        self.curve = []
+        self.plot.del_items(self.curves)
+        self.curves = []
         self.starttime = None
         self._update()
 
-    def _roundup(self, num):
-        l = math.ceil(math.log10(num))
-        num = num / (10 ** l)
-        if num < 0.1:
-            num = 0.1
-        elif num < 0.2:
-            num = 0.2
-        elif num < -0.5:
-            num = 0.5
-        else:
-            num = 1.0
-        return num * (10 ** l)
-
-
-    def _updateRangeX(self, x):
-        if x < self.xmin:
-            self.xmin = x
-            self.xstep = self._roundup(self.xmax - self.xmin) / 10
-        if self.xmax < x:
-            self.xmax = x
-            self.xstep = self._roundup(self.xmax - self.xmin) / 10
-
-    def _reduceRangeX(self):
-        self.xmin = self.x[0]
-
-    def _updateRangeY(self, y):
-        if y < self.ymin:
-            self.ymin = y
-            self.ystep = self._roundup(self.ymax - self.ymin) / 10
-            self.ymin = (self.ymin / self.ystep - 1) * self.ystep
-        if self.ymax < y:
-            self.ymax = y
-            self.ystep = self._roundup(self.ymax - self.ymin) / 10
-            self.ymax = int((self.ymax + self.ystep - 1) / self.ystep) * self.ystep
-
     def _addCurve(self):
-        curve = Qwt.QwtPlotCurve('');
-        curve.setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
-        pen = QtGui.QPen(QtGui.QColor(self.penColors[len(self.curve) % len(self.penColors)]))
-        pen.setWidth(1)
-        curve.setPen(pen)
-        curve.attach(self.plot)
-        self.curve.append(curve)
+        param = CurveParam()
+        # param.label = 'My curve'
+        param.line = LineStyleParam()
+        param.line.color = self.penColors[len(self.curves)]
+        curve = CurveItem(param)
+        self.plot.add_item(curve)
+        self.curves.append(curve)
 
     def _insert(self, x, y):
         if not self.starttime:
@@ -144,9 +107,8 @@ class Plotter(QDialog, SeriaMonComponent):
 
         if self.MAXSAMPLES <= len(self.x):
             self.x.pop(0)
-            self._reduceRangeX()
+
         self.x.append(x - self.starttime)
-        self._updateRangeX(x - self.starttime)
 
         for i in range(len(self.y), len(y)):
             self.y.append([])
@@ -157,22 +119,15 @@ class Plotter(QDialog, SeriaMonComponent):
             if self.MAXSAMPLES <= len(self.y[i]):
                 self.y[i].pop(0)
             self.y[i].append(y[i])
-            self._updateRangeY(y[i])
 
     def _update(self):
         self.reflectFromUi()
-        if self.showGrid:
-            self.grid.attach(self.plot)
-        else:
-            self.grid.detach()
-        if self.showLegend and self.plot.legend() is None:
-            self.plot.insertLegend(self.legend, Qwt.QwtPlot.TopLegend)
-        if self.plot.legend() is not None:
-            self.plot.legend().contentsWidget().setVisible(self.showLegend)
 
-        for i in range(0, len(self.curve)):
-            self.curve[i].setData(self.x, self.y[i])
-        self.plot.setAxisScale(Qwt.QwtPlot.xBottom,
-                               max(self.xmin, self.xmax - self.width), self.xmax, self.xstep)
-        self.plot.setAxisScale(Qwt.QwtPlot.yLeft, self.ymin, self.ymax, self.ystep * 2)
+        self.plot_grid.setVisible(self.showGrid)
+        self.plot_legend.setVisible(self.showLegend)
+        self.plot_window.get_toolbar().setVisible(self.showTools)
+
+        for i in range(0, len(self.curves)):
+            self.curves[i].set_data(self.x, self.y[i])
+
         self.plot.replot()
