@@ -64,10 +64,14 @@ class SeriaMonComponent:
     def updatePreferences(self):
         self.reflectToUi()
 
-    def reflectToUi(self):
+    def reflectToUi(self, items=None):
+        if items is not None and type(items) is not list:
+            items = [ items ]
         for prop in self.preferencePoperties:
             typ = prop[0]
             name = prop[1]
+            if items is not None and not name in items:
+                continue
             value = getattr(self, name)
             if 4 <= len(prop):
                 widget = prop[3]
@@ -87,10 +91,14 @@ class SeriaMonComponent:
             elif widget is not None and value is not None:
                 print('WARNING: failed to reflect {} {} to UI'.format(name, value))
 
-    def reflectFromUi(self):
+    def reflectFromUi(self, items=None):
+        if items is not None and type(items) is not list:
+            items = [ items ]
         for prop in self.preferencePoperties:
             typ = prop[0]
             name = prop[1]
+            if items is not None and not name in items:
+                continue
             if 4 <= len(prop):
                 widget = prop[3]
             else:
