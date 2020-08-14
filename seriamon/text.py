@@ -8,6 +8,8 @@ class TextViewer(QWidget, SeriaMonComponent):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
+        self.setObjectName('TextViewer')
+
         self.textEdit = QPlainTextEdit()
         self.textEdit.setReadOnly(True)
         doc = self.textEdit.document()

@@ -9,9 +9,14 @@ class SeriaMonComponent:
     STATUS_WAITING = 3
     STATUS_ERROR = 4
 
+    LOG_DEBUG = 1
+    LOG_INFO = 2
+    LOG_WARNING = 3
+    LOG_ERROR = 4
+
     updated = QtCore.pyqtSignal(object)
 
-    def __init__(self, compId, sink, instanceId=0):
+    def __init__(self, compId, sink=None, instanceId=0):
         self.compId = compId
         self.sink = sink
         self._seriamoncomponent_status = self.STATUS_NONE
@@ -24,6 +29,7 @@ class SeriaMonComponent:
         return self._seriamoncomponent_status
 
     def savePreferences(self, prefs):
+        self.log(self.LOG_DEBUG, 'savePreferences: {}'.format(self))
         self.reflectFromUi()
         for prop in self.preferencePoperties:
             typ = prop[0]
@@ -31,9 +37,12 @@ class SeriaMonComponent:
             value = getattr(self, name)
             if typ == bool:
                 value = int(value)
+            else:
+                value = typ(value)
             prefs[self.preferenceKeyPrefix + name] = str(value)
 
     def loadPreferences(self, prefs):
+        self.log(self.LOG_DEBUG, 'loadPreferences: {}'.format(self))
         for prop in self.preferencePoperties:
             typ = prop[0]
             name = prop[1]
@@ -49,6 +58,7 @@ class SeriaMonComponent:
         self.updatePreferences()
 
     def initPreferences(self, prefix, prefprops):
+        self.log(self.LOG_DEBUG, 'initPreferences: {}'.format(self))
         self.preferenceKeyPrefix = prefix
         self.preferencePoperties = prefprops
         for prop in prefprops:
@@ -62,6 +72,7 @@ class SeriaMonComponent:
         self.reflectToUi()
 
     def updatePreferences(self):
+        self.log(self.LOG_DEBUG, 'updatePreferences: {}'.format(self))
         self.reflectToUi()
 
     def reflectToUi(self, items=None):
@@ -89,7 +100,7 @@ class SeriaMonComponent:
             elif value is not None and typ in (str, int, float) and isinstance(widget, QLineEdit):
                 widget.setText(typ(value))
             elif widget is not None and value is not None:
-                print('WARNING: failed to reflect {} {} to UI'.format(name, value))
+                self.log(self.LOG_WARNING, self.LOG_WARNING, 'failed to reflect {} {} to UI'.format(name, value))
 
     def reflectFromUi(self, items=None):
         if items is not None and type(items) is not list:
@@ -110,4 +121,11 @@ class SeriaMonComponent:
             elif typ in (str, int, float) and isinstance(widget, QLineEdit):
                 setattr(self, name, typ(widget.text()))
             elif not widget is None:
-                print('WARNING: failed to reflect {} from UI'.format(name))
+                self.log(self.LOG_WARNING, 'failed to reflect {} from UI'.format(name))
+
+    def log(self, level, message=None):
+        if message is None:
+            message = level
+            level = self.LOG_INFO
+        if self.LOG_INFO <= level:
+            print('{}: {}'.format(self.objectName(), message))

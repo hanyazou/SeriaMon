@@ -11,12 +11,14 @@ from .uart import UartReader
 from .text import TextViewer
 from .logger import Logger, LogImporter
 
-class mainWindow(QMainWindow):
+class mainWindow(QMainWindow, SeriaMonComponent):
 
     serialPortSignal = QtCore.pyqtSignal(str)
 
     def __init__(self):
-        super().__init__()
+        super().__init__(compId=0, sink=None)
+
+        self.setObjectName('SeriaMon')
 
         """
            initialize properties
@@ -30,8 +32,8 @@ class mainWindow(QMainWindow):
         """
            create components
         """
-        id = 0
-        self.components = []
+        self.components = [ self ]
+        id = 1
         self.uartReaders = []
         for i in range(0, self.NUMPORTS):
             self.uartReaders.append(UartReader(compId=id, sink=self, instanceId=i))
@@ -49,6 +51,12 @@ class mainWindow(QMainWindow):
         self.logImporter = LogImporter(compId=id, sink=self)
         self.components.append(self.logImporter)
         id += 1
+
+        self.initPreferences('seriamon.app.',
+                             [[ int,    'left',         None    ],
+                              [ int,    'top',          None    ],
+                              [ int,    'width',        None    ],
+                              [ int,    'height',       None    ]])
 
         self._loadPreferences()
 
@@ -95,6 +103,27 @@ class mainWindow(QMainWindow):
 
         self.show()
 
+    def reflectToUi(self, items=None):
+        super().reflectToUi(items)
+        rect = self.geometry()
+        if self.left is None:
+            self.left = rect.width() / 2
+        if self.top is None:
+            self.top = rect.height() / 2
+        if self.width is None:
+            self.width = rect.width()
+        if self.height is None:
+            self.height = rect.height()
+        self.setGeometry(self.left, self.top, self.width, self.height)
+
+    def reflectFromUi(self, items=None):
+        super().reflectFromUi(items)
+        rect = self.geometry()
+        self.left = rect.left()
+        self.top = rect.top()
+        self.width = rect.width()
+        self.height = rect.height()
+
     def putLog(self, value, compId=None, types=None, timestamp=None):
         if compId is None:
             compId = '?'
@@ -107,12 +136,16 @@ class mainWindow(QMainWindow):
 
     def stopLog(self):
         for comp in self.components:
+            if comp is self:
+                continue
             method = getattr(comp, 'stopLog', None)
             if method:
                 method()
 
     def clearLog(self):
         for comp in self.components:
+            if comp is self:
+                continue
             method = getattr(comp, 'clearLog', None)
             if method:
                 method()
