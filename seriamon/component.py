@@ -29,6 +29,10 @@ class SeriaMonComponent:
     def getStatus(self):
         return self._seriamoncomponent_status
 
+    def importLog(self, log):
+        for value, compId, types, timestamp in log:
+            self.putLog(value, compId=compId, types=types, timestamp=timestamp)
+
     def savePreferences(self, prefs):
         self.log(self.LOG_DEBUG, 'savePreferences: {}'.format(self))
         self.reflectFromUi()

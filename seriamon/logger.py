@@ -144,27 +144,31 @@ class LogImporter(QDialog, SeriaMonComponent):
             print('read log from file {}'.format(self.filename))
             line = None
             lineCount = 0
-            while True:
+            log = []
+            while line != '':
                 line = reader.readline().strip('\n\r')
-                if line == '':
-                    break
-                try:
-                    terms = []
-                    curPos = 0
-                    for i in range(4):
-                        nextPos = line.find(' ', curPos)
-                        if nextPos < -1:
-                            continue
-                        terms.append(line[curPos:nextPos])
-                        curPos = nextPos + 1
-                    terms.append(line[curPos:])
-                    lineCount += 1
-                    timestamp = datetime.strptime('{} {}'.format(terms[0], terms[1]),
-                                                  '%Y-%m-%d %H:%M:%S.%f')
-                    self.sink.putLog(value=terms[4], compId = int(terms[2]), types=terms[3],
-                                     timestamp=timestamp)
-                except Exception as e:
-                    print(e)
+                if line != '':
+                    try:
+                        terms = []
+                        curPos = 0
+                        for i in range(4):
+                            nextPos = line.find(' ', curPos)
+                            if nextPos < -1:
+                                continue
+                            terms.append(line[curPos:nextPos])
+                            curPos = nextPos + 1
+                        terms.append(line[curPos:])
+                        lineCount += 1
+                        timestamp = datetime.strptime('{} {}'.format(terms[0], terms[1]),
+                                                      '%Y-%m-%d %H:%M:%S.%f')
+                        log.append([terms[4], int(terms[2]), terms[3], timestamp])
+                    except Exception as e:
+                        self.log(self.LOG_ERROR, e)
+                        self.log(self.LOG_ERROR, 'ignore line; {}'.format(line))
+                if 100 <= len(log) or line == '':
+                    self.sink.importLog(log)
+                    log = []
+                
         except Exception as e:
             reader = None
             QMessageBox.critical(self, "Error", '{}'.format(e))

@@ -137,6 +137,10 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.queue.put([value, compId, types, timestamp ])
         self.serialPortSignal.emit('s')
 
+    def importLog(self, log):
+        self.queue.put(log)
+        self.serialPortSignal.emit('s')
+
     def stopLog(self):
         for comp in self.components:
             if comp is self:
@@ -195,14 +199,18 @@ class mainWindow(QMainWindow, SeriaMonComponent):
     def _handler(self, msg):
         while not self.queue.empty():
             item = self.queue.get()
-            value = item[0]
-            compId = item[1]
-            types = item[2]
-            timestamp = item[3]
-            self.textViewer.putLog(value, compId, types, timestamp)
-            if 'p' in types:
+            if type(item[0]) == list:
+                self.textViewer.importLog(item)
+                self.plotter.importLog(item)
+                self.logger.importLog(item)
+            else:
+                value = item[0]
+                compId = item[1]
+                types = item[2]
+                timestamp = item[3]
+                self.textViewer.putLog(value, compId, types, timestamp)
                 self.plotter.putLog(value, compId, types, timestamp)
-            self.logger.putLog(value, compId, types, timestamp)
+                self.logger.putLog(value, compId, types, timestamp)
 
     def _onUpdatedComponent(self, component):
         statusMap = { SeriaMonComponent.STATUS_NONE:     '',

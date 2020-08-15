@@ -94,6 +94,17 @@ class Plotter(QDialog, SeriaMonComponent):
         return self._setupTabWidget
 
     def putLog(self, value, compId, types, timestamp):
+        self._putLog(value, compId, types, timestamp)
+        self._update()
+
+    def importLog(self, log):
+        for value, compId, types, timestamp in log:
+            self._putLog(value, compId=compId, types=types, timestamp=timestamp)
+        self._update()
+
+    def _putLog(self, value, compId, types, timestamp):
+        if 'p' not in types:
+            return
         try:
             names = []
             values = []
@@ -107,7 +118,6 @@ class Plotter(QDialog, SeriaMonComponent):
                 names.append(name)
                 values.append(v)
             self._insert(compId, names, timestamp.timestamp(), values)
-            self._update()
         except Exception as e:
             self.log(self.LOG_WARNING, '{}'.format(e))
             self.log(self.LOG_WARNING, 'ignore log line: {}'.format(value))
