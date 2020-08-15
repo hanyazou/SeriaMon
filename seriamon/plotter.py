@@ -95,68 +95,101 @@ class Plotter(QDialog, SeriaMonComponent):
 
     def putLog(self, value, compId, types, timestamp):
         try:
-            values = [float(v.split(':')[-1]) for v in value.split()]
-            self._insert(timestamp.timestamp(), values)
+            names = []
+            values = []
+            for term in value.split():
+                if ':' in term:
+                    name, v = term.split(':')
+                else:
+                    name = None
+                    v = term
+                v = float(v)
+                names.append(name)
+                values.append(v)
+            self._insert(compId, names, timestamp.timestamp(), values)
             self._update()
         except Exception as e:
-            pass
+            self.log(self.LOG_WARNING, '{}'.format(e))
+            self.log(self.LOG_WARNING, 'ignore log line: {}'.format(value))
 
     def clearLog(self):
-        self.plot.del_items(self.curves)
+        for curveList in self.curves:
+            if curveList is not None:
+                self.plot.del_items(curveList)
         self._initLog()
         self._update()
 
     def _initLog(self):
         self.starttime = None
-        self.x = []
-        self.y = []
         self.curves = []
+        self.numberOfCurves = 0
         self.xmin = None
         self.xmax = None
 
-    def _addCurve(self):
-        param = CurveParam()
-        # param.label = 'My curve'
-        param.line = LineStyleParam()
-        param.line.color = self.penColors[len(self.curves)]
-        curve = CurveItem(param)
-        self.plot.add_item(curve)
-        self.curves.append(curve)
+    def _curve(self, compId, columum):
+        for i in range(len(self.curves), compId + 1):
+            self.curves.append([])
+        for i in range(len(self.curves[compId]), columum + 1):
+            self.curves[compId].append(None)
+        if self.curves[compId][columum] is None:
+            param = CurveParam()
+            param.line = LineStyleParam()
+            param.line.color = self.penColors[self.numberOfCurves % len(self.penColors)]
+            curve = CurveItem(param)
+            curve._seriamon_plotter_data = {}
+            curve._seriamon_plotter_data['name'] = None
+            curve._seriamon_plotter_data['x'] = []
+            curve._seriamon_plotter_data['y'] = []
+            self.plot.add_item(curve)
+            self.curves[compId][columum] = curve
+            self.numberOfCurves += 1
+        return self.curves[compId][columum]
 
-    def _insert(self, x, y):
+    def _insert(self, compId, names, x, y):
+        # update epoc and x
         if not self.starttime:
             self.starttime = x
         x -= self.starttime
+
+        # update x range, min anx max 
         if self.xmin is None or x < self.xmin:
             self.xmin = x
         if self.xmax is None or self.xmax < x:
             self.xmax = x
 
-        if self.MAXSAMPLES <= len(self.x):
-            self.x.pop(0)
-
-        self.x.append(x)
-
-        for i in range(len(self.y), len(y)):
-            self.y.append([])
-            for j in range(0, len(self.x)-1):
-                self.y[i].append(y[i])
-            self._addCurve()
-        for i in range(0, len(y)):
-            if self.MAXSAMPLES <= len(self.y[i]):
-                self.y[i].pop(0)
-            self.y[i].append(y[i])
+        # store values
+        for columum in range(0, len(y)):
+            curve = self._curve(compId, columum)
+            cd = curve._seriamon_plotter_data
+            if names[columum] is not None and cd['name'] != names[columum]:
+                self.log(self.LOG_DEBUG, 'columum={}, name={}'.format(columum, names[columum]))
+                cd['name'] = names[columum]
+                curve.setTitle(names[columum])
+                curve.itemChanged()
+            if self.MAXSAMPLES <= len(cd['x']):
+                cd['x'].pop(0)
+                cd['y'].pop(0)
+            cd['x'].append(x)
+            cd['y'].append(y[columum])
 
     def _update(self):
         self.reflectFromUi()
 
+        # update curves
+        for compId in range(0, len(self.curves)):
+            if self.curves[compId] is None:
+                continue
+            for columum in range(0, len(self.curves[compId])):
+                curve = self.curves[compId][columum]
+                cd = curve._seriamon_plotter_data
+                curve.set_data(cd['x'], cd['y'])
+
+        # update other itesm
         self.plot_grid.setVisible(self.showGrid)
         self.plot_legend.setVisible(self.showLegend)
         self.plot_window.get_toolbar().setVisible(self.showTools)
 
-        for i in range(0, len(self.curves)):
-            self.curves[i].set_data(self.x, self.y[i])
-
+        # draw plot
         self._update_scroll_range()
         self.plot.replot()
 
