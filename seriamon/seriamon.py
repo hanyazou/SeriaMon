@@ -27,7 +27,6 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.NUMPORTS = 4;
         self.MAXQUEUESIZE = 10;
         self.queue = queue.Queue(self.MAXQUEUESIZE)
-        self.serialPortSignal.connect(self._handler)
 
         """
            create components
@@ -101,6 +100,10 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         menu.triggered.connect(self.logImporter.setupDialog().exec)
         filemenu.addAction(menu)
 
+        """
+           now we are ready
+        """
+        self.serialPortSignal.connect(self._handler)
         self.show()
 
     def reflectToUi(self, items=None):
