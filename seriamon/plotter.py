@@ -39,6 +39,8 @@ class Plotter(QDialog, SeriaMonComponent):
         self.plot.add_item(self.plot_legend)
         self.plot_grid = make.grid()
         self.plot.add_item(self.plot_grid)
+        self.plot_cursor = make.xcursor(0, 0, label='x = %.2f<br>y = %.2f')
+        self.plot.add_item(self.plot_cursor)
 
         self.panScrollBar = QScrollBar(QtCore.Qt.Horizontal)
         self.panScrollBar.valueChanged.connect(self._update_panzoom)
@@ -72,11 +74,14 @@ class Plotter(QDialog, SeriaMonComponent):
         self.showLegendCheckBox.stateChanged.connect(self._update)
         self.showToolsCheckBox = QCheckBox('show tools')
         self.showToolsCheckBox.stateChanged.connect(self._update)
+        self.showCursorCheckBox = QCheckBox('show cursor')
+        self.showCursorCheckBox.stateChanged.connect(self._update)
 
         gridlayout = QGridLayout()
         gridlayout.addWidget(self.showGridCheckBox, 0, 0)
         gridlayout.addWidget(self.showLegendCheckBox, 1, 0)
         gridlayout.addWidget(self.showToolsCheckBox, 2, 0)
+        gridlayout.addWidget(self.showCursorCheckBox, 3, 0)
         gridlayout.setRowStretch(0, 1)
         gridlayout.setColumnStretch(0, 1)
 
@@ -86,7 +91,8 @@ class Plotter(QDialog, SeriaMonComponent):
         self.initPreferences('seriamon.plotter.{}.'.format(instanceId),
                              [[ bool,   'showGrid',    False,  self.showGridCheckBox ],
                               [ bool,   'showLegend',  False,  self.showLegendCheckBox ],
-                              [ bool,   'showTools',   False,  self.showToolsCheckBox ]])
+                              [ bool,   'showTools',   False,  self.showToolsCheckBox ],
+                              [ bool,   'showCursor', False,  self.showCursorCheckBox ]])
 
         self._update()
 
@@ -100,6 +106,12 @@ class Plotter(QDialog, SeriaMonComponent):
     def importLog(self, log):
         for value, compId, types, timestamp in log:
             self._putLog(value, compId=compId, types=types, timestamp=timestamp)
+
+        # reset pan and zoom
+        self.zoomSpinBox.setValue(1.0)
+        # reset cursor position
+        self.plot_cursor.setVisible(False)
+
         self._update()
 
     def _putLog(self, value, compId, types, timestamp):
@@ -199,8 +211,16 @@ class Plotter(QDialog, SeriaMonComponent):
         self.plot_legend.setVisible(self.showLegend)
         self.plot_window.get_toolbar().setVisible(self.showTools)
 
-        # draw plot
         self._update_scroll_range()
+        if self.showCursor and not self.plot_cursor.isVisible():
+            xmin, xmax = self.plot.get_axis_limits(BasePlot.X_BOTTOM)
+            ymin, ymax = self.plot.get_axis_limits(BasePlot.Y_LEFT)
+            self.plot_cursor.set_pos((xmin + xmax) / 2, (ymin + ymax) / 2)
+            self.log(self.LOG_DEBUG, 'relocate cursor at {}, {}'.
+                     format((xmin + xmax) / 2, (ymin + ymax) / 2))
+        self.plot_cursor.setVisible(self.showCursor)
+
+        # draw plot
         self.plot.replot()
 
     def _update_panzoom(self):
