@@ -18,6 +18,8 @@ class SeriaMonComponent:
 
     def __init__(self, compId, sink=None, instanceId=0):
         self.compId = compId
+        self.instanceId = instanceId
+        self.log_level = self.LOG_INFO
         self.sink = sink
         self.loadingPreferences = False
         self._seriamoncomponent_status = self.STATUS_NONE
@@ -140,5 +142,5 @@ class SeriaMonComponent:
         if message is None:
             message = level
             level = self.LOG_INFO
-        if self.LOG_INFO <= level:
+        if self.log_level <= level:
             print('{}: {}'.format(self.objectName(), message))

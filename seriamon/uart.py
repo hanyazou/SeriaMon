@@ -19,8 +19,28 @@ class UartReader(QWidget, SeriaMonComponent):
         self.setObjectName('Port {}'.format(instanceId))
 
         self.generation = 0
-        self.thread = _ReaderThread(self)
 
+        self.setLayout(self._setupUart())
+        self.thread = _ReaderThread(self)
+        self.thread.start()
+
+    def setupWidget(self):
+        return self
+
+    def _resetPort(self, port):
+        return
+
+    def _portHandler(self, port, types):
+        value = port.readline().decode().rstrip('\n\r')
+        if len(value) == 0:
+            # timeout
+            return
+        if not self.connect:
+            # connection was closed
+            return
+        self.sink.putLog(value, self.compId, types)
+
+    def _setupUart(self):
         self.portnameComboBox = ComboBox()
         self.portnameComboBox.aboutToBeShown.connect(self._updatePortnames)
         
@@ -44,7 +64,7 @@ class UartReader(QWidget, SeriaMonComponent):
         self.stopbitsComboBox.addItem('1.5', QVariant(serial.STOPBITS_ONE_POINT_FIVE))
         self.stopbitsComboBox.addItem('2', QVariant(serial.STOPBITS_TWO))
 
-        self.initPreferences('seriamon.uartreader.{}.'.format(instanceId),
+        self.initPreferences('seriamon.{}.{}.'.format(type(self).__name__, self.instanceId),
                              [[ str,    'portname', None,   self.portnameComboBox ],
                               [ bool,   'plot',     False,  self.plotCheckBox ],
                               [ int,    'baudrate', 9600,   self.baudrateComboBox ],
@@ -71,12 +91,7 @@ class UartReader(QWidget, SeriaMonComponent):
         grid.addWidget(self.plotCheckBox, 0, 3)
         grid.addLayout(layout, 1, 1, 1, 4)
         grid.addWidget(self.connectButton, 2, 4)
-        self.setLayout(grid)
-
-        self.thread.start()
-
-    def setupWidget(self):
-        return self
+        return grid
 
     def stopLog(self):
         self.connect = False
@@ -164,6 +179,7 @@ class _ReaderThread(QtCore.QThread):
                         continue
                     parent.sink.putLog('----  open port {} -----'.
                                        format(self.port.port), parent.compId)
+                    parent._resetPort(self.port)
                     
                 if self.parent.plot:
                     types = 'p'
@@ -175,17 +191,11 @@ class _ReaderThread(QtCore.QThread):
                read serial port if it is open
             """
             if self.port.is_open:
+                error = False
                 try:
-                    value = self.port.readline().decode().rstrip('\n\r')
-                    error = False
-                    if len(value) == 0:
-                        # timeout
-                        continue
-                    if not parent.connect:
-                        # connection was closed
-                        continue
-                    self.parent.sink.putLog(value, parent.compId, types)
+                    self.parent._portHandler(self.port, types)
                 except Exception as e:
+                    print(e)
                     error = True
                     self.msleep(1000)
                     continue

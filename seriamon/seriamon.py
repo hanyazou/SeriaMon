@@ -10,6 +10,8 @@ from .plotter import Plotter
 from .uart import UartReader
 from .text import TextViewer
 from .logger import Logger, LogImporter
+from .ble import BleReader
+from .test import UartTester
 
 class mainWindow(QMainWindow, SeriaMonComponent):
 
@@ -38,6 +40,14 @@ class mainWindow(QMainWindow, SeriaMonComponent):
             self.uartReaders.append(UartReader(compId=id, sink=self, instanceId=i))
             self.components.append(self.uartReaders[i])
             id += 1
+        self.bleReaders = []
+        for i in range(0, 1):
+            self.bleReaders.append(BleReader(compId=id, sink=self, instanceId=i))
+            self.components.append(self.bleReaders[i])
+            id += 1
+        self.uartTester = UartTester(compId=id, sink=self)
+        self.components.append(self.uartTester)
+        id += 1
         self.plotter = Plotter(compId=id, sink=self)
         self.components.append(self.plotter)
         id += 1
