@@ -47,8 +47,36 @@ class UartReader(QWidget, SeriaMonComponent):
         self.plotCheckBox = QCheckBox('plot')
 
         self.baudrateComboBox = QComboBox()
-        self.baudrateComboBox.addItem('9600', 9600)
-        self.baudrateComboBox.addItem('115200', 115200)
+        self.baudrateComboBox.addItem('50', 50);
+        self.baudrateComboBox.addItem('75', 75);
+        self.baudrateComboBox.addItem('110', 110);
+        self.baudrateComboBox.addItem('134', 134);
+        self.baudrateComboBox.addItem('150', 150);
+        self.baudrateComboBox.addItem('200', 200);
+        self.baudrateComboBox.addItem('300', 300);
+        self.baudrateComboBox.addItem('600', 600);
+        self.baudrateComboBox.addItem('1200', 1200);
+        self.baudrateComboBox.addItem('1800', 1800);
+        self.baudrateComboBox.addItem('2400', 2400);
+        self.baudrateComboBox.addItem('4800', 4800);
+        self.baudrateComboBox.addItem('9600', 9600);
+        self.baudrateComboBox.addItem('19200', 19200);
+        self.baudrateComboBox.addItem('38400', 38400);
+        self.baudrateComboBox.addItem('57600', 57600);
+        self.baudrateComboBox.addItem('115200', 115200);
+        self.baudrateComboBox.addItem('230400', 230400);
+        self.baudrateComboBox.addItem('460800', 460800);
+        self.baudrateComboBox.addItem('500000', 500000);
+        self.baudrateComboBox.addItem('576000', 576000);
+        self.baudrateComboBox.addItem('921600', 921600);
+        self.baudrateComboBox.addItem('1000000', 1000000);
+        self.baudrateComboBox.addItem('1152000', 1152000);
+        self.baudrateComboBox.addItem('1500000', 1500000);
+        self.baudrateComboBox.addItem('2000000', 2000000);
+        self.baudrateComboBox.addItem('2500000', 2500000);
+        self.baudrateComboBox.addItem('3000000', 3000000);
+        self.baudrateComboBox.addItem('3500000', 3500000);
+        self.baudrateComboBox.addItem('4000000', 4000000);
 
         self.bytesizeComboBox = QComboBox()
         self.bytesizeComboBox.addItem('7', QVariant(serial.SEVENBITS))
