@@ -2,16 +2,16 @@ import time
 from datetime import datetime
 import zlib 
 
-from .uart import *
+from .uart import UartReader
 
 class UartTester(UartReader):
-    BUFFER_SIZE = 1024*1024
-    send_data = bytes(BUFFER_SIZE)
-
     def __init__(self, compId, sink, instanceId=0):
+        self.BUFFER_SIZE = 1024*1024
+
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
         self.setObjectName('Test {}'.format(instanceId))
         self.generation = 0
+        self.send_data = bytes(self.BUFFER_SIZE)
 
     def _resetPort(self, port):
         port.timeout = 5.0 # seconds
@@ -39,19 +39,19 @@ class UartTester(UartReader):
                 """
                    receive test data stream
                 """
-                buf = port.read(min(self.testInputCount, BUFFER_SIZE))
+                buf = port.read(min(self.testInputCount, self.BUFFER_SIZE))
                 n = len(buf)
                 if not self.testInputNoCRC:
-                    self.testInputCRC = zlib.crc32(b, self.testInputCRC) & 0xffffffff
+                    self.testInputCRC = zlib.crc32(buf, self.testInputCRC) & 0xffffffff
                 self.testInputCount -= n
                 self.inputTotal += n
                 self.sink.putLog("{} bytes recieved, {} bytes remain".format(
                     n, self.testInputCount))
                 if self.testInputCount == 0:
                     self.testInputEnd = datetime.now().timestamp() * 1000
-                    crc = self.readUint32(port)
+                    crc = self._readUint32(port)
                     self.sink.putLog(
-                        "%d bytes recieved in {:7.3f} sec, CRC: {:08x}{}{:08x}".format(
+                        "{} bytes recieved in {:7.3f} sec, CRC: {:08x}{}{:08x}".format(
                             self.inputTotal,
                             (self.testInputEnd - self.testInputStart) / 1000.0,
                             crc,
@@ -62,18 +62,19 @@ class UartTester(UartReader):
                 """
                    send test data stream
                 """
-                if self.testOutputCount < len(send_data):
-                    n = port.write(send_data[:self.testOutputCount])
+                if self.testOutputCount < len(self.send_data):
+                    buf = self.send_data[:self.testOutputCount]
                 else:
-                    n = port.write(send_data)
+                    buf = self.send_data
+                n = port.write(buf)
                 if not self.testOutputNoCRC:
-                    self.testOutputCRC = zlib.crc32(b, self.testOutputCRC) & 0xffffffff
+                    self.testOutputCRC = zlib.crc32(buf, self.testOutputCRC) & 0xffffffff
                 self.testOutputCount -= n
                 self.outputTotal += n
                 self.sink.putLog("{} bytes sent, {} bytes remain".format(n, self.testInputCount))
                 if self.testOutputCount == 0:
                     self.testOutputEnd = datetime.now().timestamp() * 1000
-                    self_writeUint43(port, self.testOutputCRC)
+                    self._writeUint32(port, self.testOutputCRC)
                     self.sink.putLog(
                         "{} bytes sent in {:7.3f} sec, CRC: {:08x}".format(
                             self.outputTotal,
@@ -98,14 +99,14 @@ class UartTester(UartReader):
                    comand: test receive with or w/o crc
                 """
                 if buf[3] == ord('C'):
-                    self.testInputNoCRC = false;
+                    self.testInputNoCRC = False
                 else:
-                    self.testInputNoCRC = true
+                    self.testInputNoCRC = True
                 self.testInputCRC = 0
-                self.testInputCount = self.readUint32(port)
+                self.testInputCount = self._readUint32(port)
                 self.testInputStart = datetime.now().timestamp() * 1000
                 self.testInputEnd = 0
-                self.sink.putLog("testInputCount={} CRC={:08x}".fotmat(
+                self.sink.putLog("testInputCount={} CRC={:08x}".format(
                     self.testInputCount, self.testInputCRC))
 
             elif command == "\\TSC" or command == "\\TS_":
@@ -113,16 +114,16 @@ class UartTester(UartReader):
                    command: test send with or w/o crc
                 """
                 if buf[3] == ord('C'):
-                    self.testOutputNoCRC = false
+                    self.testOutputNoCRC = False
                 else:
-                    self.testOutputNoCRC = true
+                    self.testOutputNoCRC = True
 
-                self.testOutputCRC = 0;
-                self.testOutputCount = self.readUint32(port)
+                self.testOutputCRC = 0
+                self.testOutputCount = self._readUint32(port)
                 self.testOutputStart = datetime.now().timestamp() * 1000
-                self.testOutputEnd = 0;
-                self.sink.putLog("testOutputCount={} CRC={:08x}".fotmat(
-                    self.testOutputCount, self.testOutputCRC));
+                self.testOutputEnd = 0
+                self.sink.putLog("testOutputCount={} CRC={:08x}".format(
+                    self.testOutputCount, self.testOutputCRC))
 
             elif command == "\\TGS":
                 """
@@ -136,6 +137,7 @@ class UartTester(UartReader):
                 self._writeUint32(port, self.testInputCRC)
                 self._writeUint32(port, self.outputTotal)
                 self._writeUint32(port, self.testOutputCRC)
+                self._write(port, self.send_data[:240])
 
             elif command == "\\TRS":
                 """
@@ -152,7 +154,7 @@ class UartTester(UartReader):
                 """
                    command: message from accessory
                 """
-                n = self,_readUint32(port)
+                n = self._readUint32(port)
                 self.sink.putLog("Message {} bytes from accessory".format(n))
                 buf = self._read(port, n)
                 self.sink.putLog("    {}".format(self._bytesToHexString(buf)))
@@ -160,7 +162,7 @@ class UartTester(UartReader):
                 """
                    command: echo 
                 """
-                n = self_readUint32(port)
+                n = self._readUint32(port)
                 self.sink.putLog("Echo {} bytes to accessory".format(n))
                 buf = self._read(port, n)
                 self.sink.putLog("    {}".format(self._bytesToHexString(buf)))
@@ -176,7 +178,7 @@ class UartTester(UartReader):
         return ''.join(["%02x " % ord(chr(x)) for x in buf]).strip()
 
     def _writeUint32(self, port, n):
-        buf = port.write(n.to_bytes(4, "big"))
+        port.write(n.to_bytes(4, "big"))
 
     def _readUint32(self, port) -> int:
         buf = port.read(4)
