@@ -202,6 +202,9 @@ class _ReaderThread(QtCore.QThread):
                         self.port.open()
                         error = False
                     except Exception as e:
+                        parent.sink.putLog('----  fail to open {} -----'.
+                                           format(self.port.port), parent.compId)
+                        print(e)
                         error = True
                         self.msleep(1000)
                         continue
