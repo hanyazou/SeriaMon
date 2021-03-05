@@ -92,6 +92,9 @@ class UartReader(QWidget, SeriaMonComponent):
         self.stopbitsComboBox.addItem('1.5', QVariant(serial.STOPBITS_ONE_POINT_FIVE))
         self.stopbitsComboBox.addItem('2', QVariant(serial.STOPBITS_TWO))
 
+        self.rtsctsCheckBox = QCheckBox('rtscts')
+        self.dsrdtrCheckBox = QCheckBox('dsrdtr')
+
         self.initPreferences('seriamon.{}.{}.'.format(type(self).__name__, self.instanceId),
                              [[ str,    'portname', None,   self.portnameComboBox ],
                               [ bool,   'plot',     False,  self.plotCheckBox ],
@@ -99,6 +102,8 @@ class UartReader(QWidget, SeriaMonComponent):
                               [ int,    'bytesize', 8,      self.bytesizeComboBox ],
                               [ str,    'parity',   'N',    self.parityComboBox ],
                               [ float,  'stopbits', 1,      self.stopbitsComboBox ],
+                              [ bool,   'rtscts',   False,  self.rtsctsCheckBox ],
+                              [ bool,   'dsrdtr',   False,  self.dsrdtrCheckBox ],
                               [ bool,   'connect',  False,  None ]])
 
         self.connectButton = QPushButton()
@@ -107,12 +112,14 @@ class UartReader(QWidget, SeriaMonComponent):
         layout = QHBoxLayout()
         layout.addWidget(QLabel('baud rate:'))
         layout.addWidget(self.baudrateComboBox)
-        layout.addWidget(QLabel('    byte size:'))
+        layout.addWidget(QLabel('byte size:'))
         layout.addWidget(self.bytesizeComboBox)
-        layout.addWidget(QLabel('    parity bit:'))
+        layout.addWidget(QLabel('parity bit:'))
         layout.addWidget(self.parityComboBox)
-        layout.addWidget(QLabel('    stop bit:'))
+        layout.addWidget(QLabel('stop bit:'))
         layout.addWidget(self.stopbitsComboBox)
+        layout.addWidget(self.rtsctsCheckBox)
+        layout.addWidget(self.dsrdtrCheckBox)
 
         grid = QGridLayout()
         grid.addWidget(self.portnameComboBox, 0, 1, 1, 2)
@@ -133,6 +140,8 @@ class UartReader(QWidget, SeriaMonComponent):
         self.bytesizeComboBox.setEnabled(not self.connect)
         self.parityComboBox.setEnabled(not self.connect)
         self.stopbitsComboBox.setEnabled(not self.connect)
+        self.rtsctsCheckBox.setEnabled(not self.connect)
+        self.dsrdtrCheckBox.setEnabled(not self.connect)
         self.connectButton.setText('Disconnect' if self.connect else 'Connect')
         self.generation += 1
 
@@ -198,6 +207,8 @@ class _ReaderThread(QtCore.QThread):
                     self.port.bytesize = parent.bytesize
                     self.port.parity = parent.parity
                     self.port.stopbits = parent.stopbits
+                    self.port.rtscts = parent.rtscts
+                    self.port.dsrdtr = parent.dsrdtr
                     try:
                         self.port.open()
                         error = False
