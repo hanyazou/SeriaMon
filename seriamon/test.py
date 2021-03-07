@@ -7,6 +7,7 @@ from .uart import UartReader
 class UartTester(UartReader):
     def __init__(self, compId, sink, instanceId=0):
         self.BUFFER_SIZE = 1024*1024
+        self.BLOCK_SIZE = 512
 
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
         self.setObjectName('Test {}'.format(instanceId))
@@ -32,6 +33,8 @@ class UartTester(UartReader):
         self.testOutputEnd = 0
         self.outputTotal = 0
 
+        self.errorCount = 0
+
     def _portHandler(self, port, types):
         command = None
         if 0 < self.testInputCount or 0 < self.testOutputCount:
@@ -49,12 +52,32 @@ class UartTester(UartReader):
                     self.testInputCount = 0
                 else:
                     self.testInputEnd = datetime.now().timestamp() * 1000
-                    if not self.testInputNoCRC:
-                        self.testInputCRC = zlib.crc32(buf, self.testInputCRC) & 0xffffffff
                     self.testInputCount -= n
                     self.inputTotal += n
                     self.sink.putLog("{:,} bytes recieved, {:,} bytes {:.1f}% remain".format(
                         n, self.testInputCount, self.testInputCount * 100 / self.testInputTotal))
+                    num_of_blocks = int(n / self.BLOCK_SIZE)
+                    if num_of_blocks * self.BLOCK_SIZE != n:
+                        self.sink.putLog("WARNING {:,} bytes is {} blocks + {} bytes".format(
+                            n, num_of_blocks, n - num_of_blocks * self.BLOCK_SIZE))
+                    if not self.testInputNoCRC:
+                        self.testInputCRC = zlib.crc32(buf, self.testInputCRC) & 0xffffffff
+                        for i in range(num_of_blocks):
+                            off = i * self.BLOCK_SIZE
+                            seqnum0 = int.from_bytes(buf[off:off+4], "big")
+                            off = (i + 1) * self.BLOCK_SIZE - 4
+                            seqnum1 = int.from_bytes(buf[off:off+4], "big")
+                            if seqnum0 != i or seqnum1 != i:
+                                self.errorCount += 1
+                                if self.errorCount == 1:
+                                    self.sink.putLog(
+                                        "ERROR: block {:08x} is broken ({:08x}, {:08x})".format(
+                                            i, seqnum0, seqnum1))
+                                    for j in range(int(self.BLOCK_SIZE / 16)):
+                                        offs = i * self.BLOCK_SIZE + j * 16
+                                        self.sink.putLog("    {:04x}: {}".format(
+                                            offs, self._bytesToHexString(buf[offs:offs + 16])))
+                                break
                 if self.testInputCount == 0:
                     crc = self._readUint32(port)
                     self.sink.putLog(
@@ -109,6 +132,7 @@ class UartTester(UartReader):
             """
                comand: test receive with or w/o crc
             """
+            self._resetPort(port)
             if buf[3] == ord('C'):
                 self.testInputNoCRC = False
             else:
@@ -125,6 +149,7 @@ class UartTester(UartReader):
             """
                command: test send with or w/o crc
             """
+            self._resetPort(port)
             if buf[3] == ord('C'):
                 self.testOutputNoCRC = False
             else:
