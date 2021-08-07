@@ -23,13 +23,24 @@ class SeriaMonComponent:
         self.sink = sink
         self.loadingPreferences = False
         self._seriamoncomponent_status = self.STATUS_NONE
+        self._component_name = None
 
     def setStatus(self, status):
         self._seriamoncomponent_status = status
-        self.updated.emit(self)
+        if isinstance(self, QtCore.QObject):
+            self.updated.emit(self)
 
     def getStatus(self):
         return self._seriamoncomponent_status
+
+    def setComponentName(self, name, instanceId=None):
+        if instanceId is None:
+            self._component_name = name
+        else:
+            self._component_name = ('{} {}'.format(name, instanceId))
+
+    def getComponentName(self):
+        return self._component_name
 
     def importLog(self, log):
         for value, compId, types, timestamp in log:

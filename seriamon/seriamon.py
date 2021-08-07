@@ -12,6 +12,7 @@ from .text import TextViewer
 from .logger import Logger, LogImporter
 from .ble import BleReader
 from .test import UartTester
+from .filter import PortFilter
 
 class mainWindow(QMainWindow, SeriaMonComponent):
 
@@ -37,8 +38,11 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         id = 1
         self.uartReaders = []
         for i in range(0, self.NUMPORTS):
-            self.uartReaders.append(UartReader(compId=id, sink=self, instanceId=i))
+            filter = PortFilter(compId=id, sink=self)
+            id += 1
+            self.uartReaders.append(UartReader(compId=id, sink=filter, instanceId=i))
             self.components.append(self.uartReaders[i])
+            filter.setSource(self.uartReaders[i])
             id += 1
         self.bleReaders = []
         for i in range(0, 1):

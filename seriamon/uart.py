@@ -3,6 +3,8 @@ import os
 import serial
 import serial.tools.list_ports
 import errno
+import queue
+import time
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
@@ -16,6 +18,7 @@ class UartReader(QWidget, SeriaMonComponent):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
+        self.setComponentName('Port', instanceId)
         self.setObjectName('Port {}'.format(instanceId))
 
         self.generation = 0
@@ -23,6 +26,7 @@ class UartReader(QWidget, SeriaMonComponent):
         self.setLayout(self._setupUart())
         self.thread = _ReaderThread(self)
         self.thread.start()
+        self.queue = queue.Queue(1)
 
     def setupWidget(self):
         return self
@@ -30,8 +34,38 @@ class UartReader(QWidget, SeriaMonComponent):
     def _resetPort(self, port):
         return
 
+    def write(self, data, block=True, timeout=None):
+        if isinstance(data, str):
+            data = data.encode()
+        if timeout:
+            deadline = time() + timeout
+        try:
+            self.queue.put(data, block=block, timeout=timeout)
+        except queue.Full as e:
+            return False
+        if not timeout:
+            self.queue.join()
+            return
+        self.queue.all_tasks_done.acquire()
+        try:
+            while self.queue.unfinished_tasks:
+                if deadline <= time():
+                    if not self.queue.empty():
+                        self.queue.get_nowait()
+                    return False
+            self.all_tasks_done.wait(deadline - deadline)
+        finally:
+            self.all_tasks_done.release()
+        return True
+
     def _portHandler(self, port, types):
-        value = port.readline().decode().rstrip('\n\r')
+        if not self.queue.empty():
+            try:
+                port.write(self.queue.get_nowait())
+                self.queue.task_done()
+            except queue.Empty as e:
+                pass
+        value = port.read(size=1000)
         if len(value) == 0:
             # timeout
             return
