@@ -37,25 +37,21 @@ class UartReader(QWidget, SeriaMonComponent):
     def write(self, data, block=True, timeout=None):
         if isinstance(data, str):
             data = data.encode()
-        if timeout:
-            deadline = time() + timeout
+        deadline = Util.deadline(timeout)
         try:
-            self.queue.put(data, block=block, timeout=timeout)
+            self.queue.put(data, block=block, timeout=Util.remaining_seconds(deadline))
         except queue.Full as e:
             return False
-        if not timeout:
-            self.queue.join()
-            return
         self.queue.all_tasks_done.acquire()
         try:
             while self.queue.unfinished_tasks:
-                if deadline <= time():
+                self.queue.all_tasks_done.wait(Util.remaining_seconds(deadline))
+                if deadline <= Util.now():
                     if not self.queue.empty():
                         self.queue.get_nowait()
                     return False
-            self.all_tasks_done.wait(deadline - deadline)
         finally:
-            self.all_tasks_done.release()
+            self.queue.all_tasks_done.release()
         return True
 
     def _portHandler(self, port, types):

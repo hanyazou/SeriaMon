@@ -30,14 +30,26 @@ class FilterManager:
         return FilterManager._filters
 
 
+class FilterHook:
+    def __init__(self, filter, callback):
+        self.filter = filter
+        self.callback = callback
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, trace):
+        self.filter.unhook(self)
+
+
 class PortFilter(SeriaMonComponent):
-    _lock = threading.RLock()
+    _condvar = threading.Condition()
 
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
         self._source = None
         self._remain = None
-        self._hooks = {}
+        self._hooks = []
 
     def setSource(self, source):
         self._source = source
@@ -51,7 +63,7 @@ class PortFilter(SeriaMonComponent):
             return
         if timestamp is None:
             timestamp = datetime.now()
-        with self._lock:
+        with self._condvar:
             value = Util.decode(value).strip('\r')
             if self._remain:
                 value = self._remain + value
@@ -74,17 +86,20 @@ class PortFilter(SeriaMonComponent):
             self.remain_ts = timestamp
 
     def hook(self, callback, pattern=None):
-        with self._lock:
+        with self._condvar:
             if pattern:
-                pattern = re.comple(pattern)
-            self._hooks[callback] = pattern
+                pattern = re.compile(pattern)
+            hook = FilterHook(self, callback)
+            hook.pattern = pattern
+            self._hooks.append(hook)
+            return hook
 
-    def unhook(self, callback):
-        with self._lock:
-            del self._hooks[callback]
+    def unhook(self, hook):
+        with self._condvar:
+            self._hooks.remove(hook)
 
     def flush(self):
-        with self._lock:
+        with self._condvar:
             if self._remain == '':
                 return
             self._handleLine(self._remain, self.remain_compId, self.remain_types, self.remain_ts)
@@ -93,19 +108,49 @@ class PortFilter(SeriaMonComponent):
     def write(self, data, block=True, timeout=None):
         return self._source.write(data, block=block, timeout=timeout)
 
-    def _handleLine(self, line, compId, types, ts):
-        with self._lock:
-            for cb in self._hooks:
-                if self._hooks[cb] is None:
-                    cb(line)
+    def waitFor(self, pattern=None, timeout=None, silence=None):
+        deadline = Util.deadline(timeout)
+        print("waitFor({}, pattern='{}', silence={}, deadline={})".format(self._source.getComponentName(), pattern, silence, deadline))
+        lines = []
+        with self._condvar, self.hook(lambda line: [ lines.append(line) ], pattern=pattern):
+            while Util.now() < deadline:
+                if silence:
+                    if not self._condvar.wait(silence) and len(lines) == 0:
+                        return True
+                    else:
+                        lines = []
                 else:
-                    match =  self._hooks[cb].match(line)
-                    if match:
-                        cb(line)
+                    if self._condvar.wait(Util.remaining_seconds(deadline)) and 0 < len(lines):
+                        return True
+        return False
+
+    def command(self, command, pattern=None, silence=None, timeout=None):
+        deadline = Util.deadline(timeout)
+        res = []
+        if pattern is None and silence is None:
+            silence = 1
+        if silence and not self.waitFor(silence=silence, timeout=deadline):
+            raise TimeoutError()
+        with self.hook(lambda line: res.append(line)):
+            if not self.write(command, timeout=deadline):
+                print("failed to write command {}".format(command))
+                raise TimeoutError()
+            if pattern and not self.waitFor(pattern=pattern, timeout=deadline):
+                raise TimeoutError()
+            if silence and not self.waitFor(silence=silence, timeout=deadline):
+                raise TimeoutError()
+        return res
+
+    # This must be called after the lock has been acquired.
+    def _handleLine(self, line, compId, types, ts):
         self.sink.putLog(line, compId, types, ts)
+        for hook in self._hooks:
+            if hook.pattern is None or hook.pattern.match(line):
+                hook.callback(line)
+        self._condvar.notifyAll()
 
     def _update(self):
         if self._source:
             self.setStatus(self._source.getStatus())
-        if self._remain and self.remain_ts < Util.before_seconds(2):
+        if self._remain and self.remain_ts < Util.before_seconds(1):
             self.flush()

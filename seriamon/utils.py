@@ -1,4 +1,5 @@
 import datetime
+import threading
 
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
@@ -31,5 +32,22 @@ class Util:
     def before_seconds(seconds):
         return Util.now() + datetime.timedelta(seconds=-seconds)
     
+    def remaining_seconds(deadline):
+        return min(threading.TIMEOUT_MAX, (deadline - Util.now()).total_seconds())
+    
     def now():
         return datetime.datetime.now()
+
+    def deadline(timeout=None, seconds=None):
+        if seconds:
+            return Util.after_seconds(seconds)
+        if timeout:
+            if isinstance(timeout, datetime.timedelta):
+                return Util.now() + timeout
+            elif isinstance(timeout, datetime.datetime):
+                return timeout
+            elif isinstance(timeout, (float, int)):
+                return Util.after_seconds(timeout)
+        if timeout:
+            raise Exception(print("Could not interplet value of type {} to deadline.".format(type(timeout))))
+        return datetime.datetime.max
