@@ -10,8 +10,8 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QTextCursor
 
-from ..component import *
-from ..utils import *
+from seriamon.component import *
+from seriamon.utils import *
 
 class Component(QWidget, SeriaMonPort):
 
@@ -127,7 +127,7 @@ class Component(QWidget, SeriaMonPort):
         self.rtsctsCheckBox = QCheckBox('rtscts')
         self.dsrdtrCheckBox = QCheckBox('dsrdtr')
 
-        self.initPreferences('seriamon.{}.{}.'.format(type(self).__name__, self.instanceId),
+        self.initPreferences('{}.{}.{}.'.format(type(self).__module__, type(self).__name__, self.instanceId),
                              [[ str,    'portname', None,   self.portnameComboBox ],
                               [ bool,   'plot',     False,  self.plotCheckBox ],
                               [ int,    'baudrate', 9600,   self.baudrateComboBox ],

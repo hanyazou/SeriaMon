@@ -11,8 +11,8 @@ from PyQt5.QtGui import QTextCursor
 from bleak import BleakScanner
 from bleak import BleakClient
 
-from ..component import SeriaMonPort
-from ..utils import *
+from seriamon.component import SeriaMonPort
+from seriamon.utils import *
 
 __devices__ = {}
 __instances__ = [ None, None, None, None ]
@@ -71,7 +71,7 @@ class Component(QWidget, SeriaMonPort):
         
         self.plotCheckBox = QCheckBox('plot')
 
-        self.initPreferences('seriamon.blereader.{}.'.format(instanceId),
+        self.initPreferences('{}.{}.{}.'.format(type(self).__module__, type(self).__name__, self.instanceId),
                              [[ str,    'device',   None,   self.deviceComboBox ],
                               [ bool,   'plot',     False,  self.plotCheckBox ],
                               [ bool,   'connect',  False,  None ]])
