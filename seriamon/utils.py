@@ -4,6 +4,8 @@ import threading
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
+from seriamon.preferences import Preferences
+
 class ComboBox(QComboBox):
     aboutToBeShown = QtCore.pyqtSignal()
     def showPopup(self):
@@ -15,6 +17,9 @@ class ComboBox(QComboBox):
         super(ComboBox, self).showEvent(e)
 
 class Util:
+
+    _logger = None
+
     def _hexstr(buf):
         return ''.join(["\\%02x" % ord(chr(x)) for x in buf]).strip()
 
@@ -49,5 +54,12 @@ class Util:
             elif isinstance(timeout, (float, int)):
                 return Util.after_seconds(timeout)
         if timeout:
-            raise Exception(print("Could not interplet value of type {} to deadline.".format(type(timeout))))
+            raise Exception("Could not interplet value of type {} to deadline.".format(type(timeout)))
         return datetime.datetime.max
+
+    def set_logger(logger):
+        Util._logger = logger
+
+    def log(level, message=None):
+        if Util._logger:
+            Util._logger.log(level, message)

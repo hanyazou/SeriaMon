@@ -11,6 +11,8 @@ from .plotter import Plotter
 from .text import TextViewer
 from .logger import Logger, LogImporter
 from .filter import PortFilter
+from .preferences_dialog import PreferencesDialog
+from .utils import Util
 
 class mainWindow(QMainWindow, SeriaMonComponent):
 
@@ -19,14 +21,15 @@ class mainWindow(QMainWindow, SeriaMonComponent):
     def __init__(self):
         super().__init__(compId=0, sink=None)
 
-        self.setObjectName('SeriaMon')
+        self.setComponentName('SeriaMon')
+        Util.set_logger(self)
 
         """
            initialize properties
         """
         self.prefFilename = os.path.join(os.path.expanduser('~'), '.seriamon.cfg')
-        self.NUMPORTS = 4;
-        self.MAXQUEUESIZE = 10;
+        self.NUMPORTS = 4
+        self.MAXQUEUESIZE = 10
         self.queue = queue.Queue(self.MAXQUEUESIZE)
 
         """
@@ -34,6 +37,13 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
         self.components = [ self ]
         id = 1
+        self.prefencesDialog = PreferencesDialog(compId=id, sink=self)
+        self.components.append(self.prefencesDialog)
+        id += 1
+
+        # load global preferences at first and load all preferences later again
+        self._loadPreferences()
+
         self.plotter = Plotter(compId=id, sink=self)
         self.components.append(self.plotter)
         id += 1
@@ -48,7 +58,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         id += 1
 
         component_folder = os.path.join(os.path.dirname(__file__), 'components')
-        print('Load components from ', component_folder)
+        self.log(self.LOG_DEBUG, 'Load components from {}'.format(component_folder))
         for module_name in [x[:-3] for x in os.listdir(component_folder) if x.endswith('.py')]:
             module = importlib.import_module('.components.' + module_name, 'seriamon')
             filter = PortFilter(compId=id, sink=self)
@@ -56,17 +66,19 @@ class mainWindow(QMainWindow, SeriaMonComponent):
             component = module.Component(compId=id, sink=filter)
             id += 1
             isport = isinstance(component, SeriaMonPort)
-            print('    add compoment {}{} from {}'.format(component.getComponentName(), ' (port)' if isport else '', module_name))
+            self.log(self.LOG_DEBUG, '    add compoment {}{} from {}'.format(component.getComponentName(), ' (port)' if isport else '', module_name))
             self.components.append(component)
             if isport:
                 filter.setSource(component)
+            if 1 < component.component_default_num_of_instances:
+                component.setComponentName(component.getComponentName() + ' 0')
             for i in range(1, component.component_default_num_of_instances):
                 if isport:
                     sink = PortFilter(compId=id, sink=self)
                     id += 1
                 else:
                     sink = self
-                print('    add compoment {}{} from {}'.format(component.getComponentName(), ' (port)' if isport else '', module_name))
+                self.log(self.LOG_DEBUG, '    add compoment {}{} from {}'.format(component.getComponentName(), ' (port)' if isport else '', module_name))
                 component = module.Component(compId=id, sink=sink, instanceId=i)
                 id += 1
                 self.components.append(component)
@@ -115,6 +127,9 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         menubar = self.menuBar()
         filemenu = menubar.addMenu('&File')
 
+        menu = QAction('&Preferences', self)
+        menu.triggered.connect(self.prefencesDialog.setupDialog().exec)
+        filemenu.addAction(menu)
         menu = QAction('&Log...', self)
         menu.triggered.connect(self.logger.setupDialog().exec)
         filemenu.addAction(menu)
@@ -190,7 +205,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                 if isinstance(comp, SeriaMonComponent):
                     comp.savePreferences(preferences)
             except Exception as e:
-                print(e)
+                self.log(self.LOG_ERROR, e)
         with open(self.prefFilename, 'w') as writer:
             for key, value in preferences.items():
                 writer.write('{}: {}\n'.format(key, value))
@@ -206,17 +221,17 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                     pos = line.index(':')
                     preferences[line[0:pos]] = line[pos+2:]
                 except Exception as e:
-                    print(e)
-                    print(line)
+                    self.log(self.LOG_ERROR, e)
+                    self.log(self.LOG_ERROR, line)
             reader.close()
         except Exception as e:
-            print(e)
+            self.log(self.LOG_ERROR, e)
         for comp in self.components:
             try:
                 if isinstance(comp, SeriaMonComponent):
                     comp.loadPreferences(preferences)
             except Exception as e:
-                print(e)
+                self.log(self.LOG_ERROR, e)
 
     def _handler(self, msg):
         while not self.queue.empty():

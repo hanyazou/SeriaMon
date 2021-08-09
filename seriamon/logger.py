@@ -27,7 +27,6 @@ class Logger(QDialog, SeriaMonComponent):
         self.selectFileButton = QPushButton('...')
         self.selectFileButton.clicked.connect(self._selectFile)
 
-        self.setObjectName('Logger')
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttons.accepted.connect(self._onOK)
         self.buttons.rejected.connect(self._onCancel)
@@ -75,7 +74,7 @@ class Logger(QDialog, SeriaMonComponent):
             if doWrite:
                 try:
                     newWriter = open(filename, 'w')
-                    print('new log file is {}'.format(filename))
+                    self.log(self.LOG_INFO, 'new log file is {}'.format(filename))
                 except Exception as e:
                     newWriter = None
                     QMessageBox.critical(self, "Error", '{}'.format(e))
@@ -83,7 +82,7 @@ class Logger(QDialog, SeriaMonComponent):
             self.writer = newWriter
             if oldWriter:
                 oldWriter.close()
-                print('close old log file, {}'.format(self.filename))
+                self.log(self.LOG_INFO, 'close old log file, {}'.format(self.filename))
         self.filename = filename
         self.doWrite = doWrite
         self.close()
@@ -96,8 +95,6 @@ class Logger(QDialog, SeriaMonComponent):
 class LogImporter(QDialog, SeriaMonComponent):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
-
-        self.setObjectName('LogImporter')
 
         self.sink = sink
 
@@ -141,7 +138,7 @@ class LogImporter(QDialog, SeriaMonComponent):
         self.sink.clearLog()
         try:
             reader = open(self.filename, 'r')
-            print('read log from file {}'.format(self.filename))
+            self.log(self.LOG_INFO, 'read log from file {}'.format(self.filename))
             line = None
             lineCount = 0
             log = []

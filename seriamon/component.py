@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
+from .preferences import Preferences
+
 class SeriaMonComponent:
 
     STATUS_NONE = 0
@@ -13,8 +15,9 @@ class SeriaMonComponent:
     LOG_INFO = 2
     LOG_WARNING = 3
     LOG_ERROR = 4
+    LOG_NONE = 99
 
-    component_default_name = 'unknown'
+    component_default_name = None
     component_default_num_of_instances = 1
 
     updated = QtCore.pyqtSignal(object)
@@ -22,14 +25,19 @@ class SeriaMonComponent:
     def __init__(self, compId, sink=None, instanceId=0):
         self.compId = compId
         self.instanceId = instanceId
-        self.log_level = self.LOG_INFO
+        self.log_level = Preferences.getInstance().default_log_level
         self.sink = sink
         self.loadingPreferences = False
+        self.preferencePoperties = []
         self._seriamoncomponent_status = self.STATUS_NONE
-        if 0 < instanceId:
-            self._component_name = '{} {}'.format(self.component_default_name, instanceId)
+        if self.component_default_name:
+            name = self.component_default_name
         else:
-            self._component_name = self.component_default_name
+            name = type(self).__name__
+        if 0 < instanceId:
+            self.setComponentName('{} {}'.format(name, instanceId))
+        else:
+            self.setComponentName(name)
 
     def setStatus(self, status):
         self._seriamoncomponent_status = status
@@ -44,6 +52,8 @@ class SeriaMonComponent:
             self._component_name = name
         else:
             self._component_name = ('{} {}'.format(name, instanceId))
+        if isinstance(self, QWidget):
+            self.setObjectName(self._component_name)
 
     def getComponentName(self):
         return self._component_name
@@ -126,7 +136,7 @@ class SeriaMonComponent:
             elif value is not None and typ is bool and isinstance(widget, QCheckBox):
                 widget.setChecked(typ(value))
             elif value is not None and typ in (str, int, float) and isinstance(widget, QLineEdit):
-                widget.setText(typ(value))
+                widget.setText(str(value))
             elif widget is not None and value is not None:
                 self.log(self.LOG_WARNING, self.LOG_WARNING, 'failed to reflect {} {} to UI'.format(name, value))
 
@@ -134,7 +144,6 @@ class SeriaMonComponent:
         if self.loadingPreferences:
             self.log(self.LOG_DEBUG, 'skip reflectFromUi()')
             return
-        self.log(self.LOG_DEBUG, 'reflectFromUi()')
         if items is not None and type(items) is not list:
             items = [ items ]
         for prop in self.preferencePoperties:
@@ -160,7 +169,7 @@ class SeriaMonComponent:
             message = level
             level = self.LOG_INFO
         if self.log_level <= level:
-            print('{}: {}'.format(self.objectName(), message))
+            print('{:>16}: {}'.format(self.getComponentName(), message))
 
 class SeriaMonPort(SeriaMonComponent):
 

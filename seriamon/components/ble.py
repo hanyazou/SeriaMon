@@ -18,10 +18,12 @@ __devices__ = {}
 __instances__ = [ None, None, None, None ]
 __handlers__ = [ None, None, None, None ]
 
+log = Util.log
+
 def detection_handler(device, advertisement_data):
     global __devices__
     if device.name == "BDM" and str(device) not in __devices__.keys():
-        print("new decice: ", device.address, device.name)
+        log("new decice: ", device.address, device.name)
         __devices__[str(device)] = device
 
 def notification_handler(self, sender, data):
@@ -42,7 +44,7 @@ def notification_handler(self, sender, data):
     else:
         value = d2
     value /= (10 ** decimal)
-    # print("{0:04x} {1:04x} {2:04x} ".format(d0, d1, d2), end='')
+    # log("{0:04x} {1:04x} {2:04x} ".format(d0, d1, d2), end='')
     log = "{0:>5} {1:10.4f} {2}{3}".format(funcs[func], value, scales[scale], units[func])
     for i in range(len(readtypes)):
         if d1 & (1 << i):
@@ -57,11 +59,7 @@ class Component(QWidget, SeriaMonPort):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
-        # for DEBUG
-        self.log_level = self.LOG_DEBUG
-
         self.instances[instanceId] = self
-        self.setObjectName(self.getComponentName())
 
         self.generation = 0
         self.thread = _ReaderThread(self)
@@ -183,14 +181,14 @@ class _ReaderThread(QtCore.QThread):
                     services = await client.get_services()
                     value_uuid = None
                     for s in services:
-                        print("  ", s.uuid, s.description)
+                        log("  ", s.uuid, s.description)
                         for c in s.characteristics:
-                            print("    ", c.uuid, c.description)
+                            log("    ", c.uuid, c.description)
                             if s.uuid.startswith("0000fff0") and c.uuid.startswith("0000fff4"):
                                 value_uuid = c.uuid
                             if s.uuid.startswith("0000180a"):
                                 value = await client.read_gatt_char(c.uuid)
-                                print("      ", value, ''.join('{:02x}'.format(x) for x in value))
+                                log("      ", value, ''.join('{:02x}'.format(x) for x in value))
 
                     if value_uuid:
                         await client.start_notify(value_uuid, parent.handlers[parent.instanceId])

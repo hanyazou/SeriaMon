@@ -14,7 +14,6 @@ class Component(UartReader):
         self.BLOCK_SIZE = 512
 
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
-        self.setObjectName(self.getComponentName())
         self.generation = 0
         self.send_data = bytes(self.BUFFER_SIZE)
 

@@ -53,6 +53,7 @@ class PortFilter(SeriaMonComponent):
 
     def setSource(self, source):
         self._source = source
+        self.setComponentName('Filter({})'.format(source.getComponentName()))
         FilterManager.register(self, source.getComponentName())
 
     def getSource(self):
@@ -110,7 +111,8 @@ class PortFilter(SeriaMonComponent):
 
     def waitFor(self, pattern=None, timeout=None, silence=None):
         deadline = Util.deadline(timeout)
-        print("waitFor({}, pattern='{}', silence={}, deadline={})".format(self._source.getComponentName(), pattern, silence, deadline))
+        self.log(self.LOG_DEBUG, "waitFor('{}', pattern={}, silence={}, deadline={})".format(
+            self._source.getComponentName(), pattern if pattern is None else "'" + pattern + "'", silence, deadline))
         lines = []
         with self._condvar, self.hook(lambda line: [ lines.append(line) ], pattern=pattern):
             while Util.now() < deadline:
@@ -133,7 +135,7 @@ class PortFilter(SeriaMonComponent):
             raise TimeoutError()
         with self.hook(lambda line: res.append(line)):
             if not self.write(command, timeout=deadline):
-                print("failed to write command {}".format(command))
+                self.log(self.LOG_ERROR, "failed to write command {}".format(command))
                 raise TimeoutError()
             if pattern and not self.waitFor(pattern=pattern, timeout=deadline):
                 raise TimeoutError()

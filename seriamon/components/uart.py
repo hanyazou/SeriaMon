@@ -1,14 +1,9 @@
-import sys
-import os
 import serial
 import serial.tools.list_ports
-import errno
 import queue
-import time
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
-from PyQt5.QtGui import QTextCursor
 
 from seriamon.component import *
 from seriamon.utils import *
@@ -20,8 +15,6 @@ class Component(QWidget, SeriaMonPort):
 
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
-
-        self.setObjectName(self.getComponentName())
 
         self.generation = 0
 
@@ -247,7 +240,7 @@ class _ReaderThread(QtCore.QThread):
                     except Exception as e:
                         parent.sink.putLog('----  fail to open {} -----'.
                                            format(self.port.port), parent.compId)
-                        print(e)
+                        self.log(self.LOG_ERROR, e)
                         error = True
                         self.msleep(1000)
                         continue
@@ -269,7 +262,7 @@ class _ReaderThread(QtCore.QThread):
                 try:
                     self.parent._portHandler(self.port, types)
                 except Exception as e:
-                    print(e)
+                    self.log(self.LOG_ERROR, e)
                     error = True
                     self.msleep(1000)
                     continue
