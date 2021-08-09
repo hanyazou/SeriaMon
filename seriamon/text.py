@@ -1,8 +1,8 @@
-import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QTextCursor
 
-from .component import SeriaMonComponent
+from seriamon.component import SeriaMonComponent
+from seriamon.preferences import Preferences
 
 class TextViewer(QWidget, SeriaMonComponent):
     def __init__(self, compId, sink, instanceId=0):
@@ -47,6 +47,11 @@ class TextViewer(QWidget, SeriaMonComponent):
         if self.compIdCheckBox.isChecked():
             cursor.insertText('{} '.format(compId))
         cursor.insertText('{}\n'.format(value))
+        while Preferences.getInstance().scroll_buffer < self.textEdit.document().blockCount() - 1:
+            cursor.movePosition(QTextCursor.Start)
+            cursor.select(QTextCursor.BlockUnderCursor)
+            cursor.removeSelectedText()
+            cursor.deleteChar()
         if self.autoScrollCheckBox.isChecked():
             scrollbar = self.textEdit.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum() - 1)
