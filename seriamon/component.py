@@ -165,11 +165,18 @@ class SeriaMonComponent:
                 self.log(self.LOG_WARNING, 'failed to reflect {} from UI'.format(name))
 
     def log(self, level, message=None):
+        level_str = ('?', 'D', 'I', 'W', 'E', '?')
         if message is None:
             message = level
             level = self.LOG_INFO
+        if self.getComponentName():
+            message = '{} {:>16}: {}'.format(level_str[level], self.getComponentName(), message)
+        else:
+            message = '{} {}'.format(level_str[level], message)
         if self.log_level <= level:
-            print('{:>16}: {}'.format(self.getComponentName(), message))
+            print(message)
+            self.sink.putLog('SeriaMon: ' + message, compId = 0, types='i')
+
 
 class SeriaMonPort(SeriaMonComponent):
 

@@ -44,9 +44,9 @@ class Logger(QDialog, SeriaMonComponent):
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
         if not types:
-            types = '-'
+            types = '_'
         if self.writer:
-            self.writer.write('{} {} {} {}\n'.format(timestamp, compId, types, value))
+            self.writer.write('{} {:02} {} {}\n'.format(timestamp, compId, types, value))
             self.writer.flush()
 
     def setupDialog(self):

@@ -19,9 +19,9 @@ class mainWindow(QMainWindow, SeriaMonComponent):
     serialPortSignal = QtCore.pyqtSignal(str)
 
     def __init__(self):
-        super().__init__(compId=0, sink=None)
+        super().__init__(compId=0, sink=self)
 
-        self.setComponentName('SeriaMon')
+        self.setComponentName(None)
         Util.set_logger(self)
 
         """
@@ -31,6 +31,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.NUMPORTS = 4
         self.MAXQUEUESIZE = 10
         self.queue = queue.Queue(self.MAXQUEUESIZE)
+        self._initialized = False
 
         """
            create components
@@ -142,6 +143,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
         self.serialPortSignal.connect(self._handler)
         self.show()
+        self._initialized = True
 
     def reflectToUi(self, items=None):
         super().reflectToUi(items)
@@ -165,6 +167,8 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.height = rect.height()
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
+        if not self._initialized:
+            return
         if compId is None:
             compId = '?'
         if types is None:
