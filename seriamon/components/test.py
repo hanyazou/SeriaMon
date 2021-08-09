@@ -2,15 +2,19 @@ import time
 from datetime import datetime
 import zlib 
 
-from .uart import UartReader
+from .uart import Component as UartReader
 
-class UartTester(UartReader):
+class Component(UartReader):
+
+    component_default_name = 'Test'
+    component_default_num_of_instances = 1
+
     def __init__(self, compId, sink, instanceId=0):
         self.BUFFER_SIZE = 1024*1024
         self.BLOCK_SIZE = 512
 
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
-        self.setObjectName('Test {}'.format(instanceId))
+        self.setObjectName(self.getComponentName())
         self.generation = 0
         self.send_data = bytes(self.BUFFER_SIZE)
 

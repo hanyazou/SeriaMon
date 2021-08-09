@@ -10,16 +10,18 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QVariant
 from PyQt5.QtGui import QTextCursor
 
-from .component import SeriaMonComponent
-from .utils import *
+from ..component import *
+from ..utils import *
 
-class UartReader(QWidget, SeriaMonComponent):
+class Component(QWidget, SeriaMonPort):
+
+    component_default_name = 'Uart'
+    component_default_num_of_instances = 2
 
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
-        self.setComponentName('Port', instanceId)
-        self.setObjectName('Port {}'.format(instanceId))
+        self.setObjectName(self.getComponentName())
 
         self.generation = 0
 

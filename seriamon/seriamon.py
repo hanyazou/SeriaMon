@@ -1,17 +1,15 @@
 import sys
 import os
 import queue
+import importlib
 from datetime import datetime
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
-from .component import SeriaMonComponent
+from .component import *
 from .plotter import Plotter
-from .uart import UartReader
 from .text import TextViewer
 from .logger import Logger, LogImporter
-from .ble import BleReader
-from .test import UartTester
 from .filter import PortFilter
 
 class mainWindow(QMainWindow, SeriaMonComponent):
@@ -36,22 +34,6 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
         self.components = [ self ]
         id = 1
-        self.uartReaders = []
-        for i in range(0, self.NUMPORTS):
-            filter = PortFilter(compId=id, sink=self)
-            id += 1
-            self.uartReaders.append(UartReader(compId=id, sink=filter, instanceId=i))
-            self.components.append(self.uartReaders[i])
-            filter.setSource(self.uartReaders[i])
-            id += 1
-        self.bleReaders = []
-        for i in range(0, 1):
-            self.bleReaders.append(BleReader(compId=id, sink=self, instanceId=i))
-            self.components.append(self.bleReaders[i])
-            id += 1
-        self.uartTester = UartTester(compId=id, sink=self)
-        self.components.append(self.uartTester)
-        id += 1
         self.plotter = Plotter(compId=id, sink=self)
         self.components.append(self.plotter)
         id += 1
@@ -64,6 +46,32 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.logImporter = LogImporter(compId=id, sink=self)
         self.components.append(self.logImporter)
         id += 1
+
+        component_folder = os.path.join(os.path.dirname(__file__), 'components')
+        print('Load components from ', component_folder)
+        for module_name in [x[:-3] for x in os.listdir(component_folder) if x.endswith('.py')]:
+            module = importlib.import_module('.components.' + module_name, 'seriamon')
+            filter = PortFilter(compId=id, sink=self)
+            id += 1
+            component = module.Component(compId=id, sink=filter)
+            id += 1
+            isport = isinstance(component, SeriaMonPort)
+            print('    add compoment {}{} from {}'.format(component.getComponentName(), ' (port)' if isport else '', module_name))
+            self.components.append(component)
+            if isport:
+                filter.setSource(component)
+            for i in range(1, component.component_default_num_of_instances):
+                if isport:
+                    sink = PortFilter(compId=id, sink=self)
+                    id += 1
+                else:
+                    sink = self
+                print('    add compoment {}{} from {}'.format(component.getComponentName(), ' (port)' if isport else '', module_name))
+                component = module.Component(compId=id, sink=sink, instanceId=i)
+                id += 1
+                self.components.append(component)
+                if sink is not self:
+                    sink.setSource(component)
 
         self.initPreferences('seriamon.app.',
                              [[ int,    'left',         None    ],

@@ -14,6 +14,9 @@ class SeriaMonComponent:
     LOG_WARNING = 3
     LOG_ERROR = 4
 
+    component_default_name = 'unknown'
+    component_default_num_of_instances = 1
+
     updated = QtCore.pyqtSignal(object)
 
     def __init__(self, compId, sink=None, instanceId=0):
@@ -23,7 +26,10 @@ class SeriaMonComponent:
         self.sink = sink
         self.loadingPreferences = False
         self._seriamoncomponent_status = self.STATUS_NONE
-        self._component_name = None
+        if 0 < instanceId:
+            self._component_name = '{} {}'.format(self.component_default_name, instanceId)
+        else:
+            self._component_name = self.component_default_name
 
     def setStatus(self, status):
         self._seriamoncomponent_status = status
@@ -155,3 +161,8 @@ class SeriaMonComponent:
             level = self.LOG_INFO
         if self.log_level <= level:
             print('{}: {}'.format(self.objectName(), message))
+
+class SeriaMonPort(SeriaMonComponent):
+
+    def __init__(self, compId, sink, instanceId=0):
+        super().__init__(compId=compId, sink=sink, instanceId=instanceId)

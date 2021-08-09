@@ -11,8 +11,8 @@ from PyQt5.QtGui import QTextCursor
 from bleak import BleakScanner
 from bleak import BleakClient
 
-from .component import SeriaMonComponent
-from .utils import *
+from ..component import SeriaMonPort
+from ..utils import *
 
 __devices__ = {}
 __instances__ = [ None, None, None, None ]
@@ -50,7 +50,9 @@ def notification_handler(self, sender, data):
     self.sink.putLog(log)
     self.sink.putLog(value, self.compId, self.types)
 
-class BleReader(QWidget, SeriaMonComponent):
+class Component(QWidget, SeriaMonPort):
+
+    component_default_name = 'BLE'
 
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
@@ -59,7 +61,7 @@ class BleReader(QWidget, SeriaMonComponent):
         self.log_level = self.LOG_DEBUG
 
         self.instances[instanceId] = self
-        self.setObjectName('BLE {}'.format(instanceId))
+        self.setObjectName(self.getComponentName())
 
         self.generation = 0
         self.thread = _ReaderThread(self)
