@@ -1,6 +1,7 @@
 import threading
 import time
 import re
+import traceback
 from datetime import datetime
 from PyQt5 import QtCore
 from .component import SeriaMonComponent
@@ -147,8 +148,12 @@ class PortFilter(SeriaMonComponent):
     def _handleLine(self, line, compId, types, ts):
         self.sink.putLog(line, compId, types, ts)
         for hook in self._hooks:
-            if hook.pattern is None or hook.pattern.match(line):
-                hook.callback(line)
+            try:
+                if hook.pattern is None or hook.pattern.match(line):
+                    hook.callback(line)
+            except Exception as e:
+                traceback.print_exc()
+                self.log(self.LOG_ERROR, "  hook.pattern={}, line={}".format(hook.pattern, line))
         self._condvar.notifyAll()
 
     def _update(self):
