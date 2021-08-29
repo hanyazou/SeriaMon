@@ -74,6 +74,7 @@ class SeriaMonComponent:
             else:
                 value = typ(value)
             prefs[self.preferenceKeyPrefix + name] = str(value)
+            self.log(self.LOG_DEBUG, 'savePreferences: {}={}'.format(name, str(value)))
 
     def loadPreferences(self, prefs):
         self.log(self.LOG_DEBUG, 'loadPreferences: {}'.format(self))

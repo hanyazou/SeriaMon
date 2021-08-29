@@ -11,8 +11,6 @@ class Logger(QDialog, SeriaMonComponent):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
         self.writer = None
-        self.filename = os.path.join(os.path.expanduser('~'), 'Documents', 'seriamon.log')
-        self.doWrite = False
 
         self.setWindowTitle('Log settings')
 
@@ -20,12 +18,15 @@ class Logger(QDialog, SeriaMonComponent):
         self.saveCheckBox.stateChanged.connect(self._onSaveStateChanged)
         self.saveCheckBox.setChecked(False)
 
-        self.filenameTextEdit = QLineEdit()
-        width = self.filenameTextEdit.fontMetrics().boundingRect(self.filename+'____').width()
-        self.filenameTextEdit.setMinimumWidth(width)
+        self.foldernameTextEdit = QLineEdit()
+        width = self.foldernameTextEdit.fontMetrics().boundingRect('_' * 60).width()
+        self.foldernameTextEdit.setMinimumWidth(width)
 
-        self.selectFileButton = QPushButton('...')
-        self.selectFileButton.clicked.connect(self._selectFile)
+        self.selectFolderButton = QPushButton('...')
+        self.selectFolderButton.clicked.connect(self._selectFolder)
+
+        self.filenameTextEdit = QLineEdit()
+        self.filenameTextEdit.setMinimumWidth(width)
 
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttons.accepted.connect(self._onOK)
@@ -33,63 +34,79 @@ class Logger(QDialog, SeriaMonComponent):
 
         grid = QGridLayout()
         grid.addWidget(self.saveCheckBox, 0, 0)
-        grid.addWidget(self.filenameTextEdit, 1, 0, 1, 6)
-        grid.addWidget(self.selectFileButton, 1, 6)
-        grid.addWidget(self.buttons, 2, 0, 1, 7, alignment=QtCore.Qt.AlignRight)
+        grid.addWidget(self.foldernameTextEdit, 1, 0, 1, 6)
+        grid.addWidget(self.selectFolderButton, 1, 6)
+        grid.addWidget(self.filenameTextEdit, 2, 0, 1, 7)
+        grid.addWidget(self.buttons, 3, 0, 1, 7, alignment=QtCore.Qt.AlignRight)
         grid.setColumnStretch(0, 1)
         self.setLayout(grid)
 
+        foldername = os.path.join(os.path.expanduser('~'), 'Documents')
+        filename = 'seriamon-%Y%m%d-%H%M%S.log'
         self.initPreferences('seriamon.logger.{}.'.format(instanceId),
-                             [[ str,    'filename', self.filename, self.filenameTextEdit ]])
+                             [[ str,    'foldername', foldername, self.foldernameTextEdit ],
+                              [ str,    'filename',   filename,   self.filenameTextEdit ],
+                              [ bool,   'doWrite',    False,      self.saveCheckBox ]])
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
         if not types:
             types = '_'
         if self.writer:
+            if isinstance(value, str):
+                value = value.rstrip('\n\r')
             self.writer.write('{} {:02} {} {}\n'.format(timestamp, compId, types, value))
             self.writer.flush()
 
     def setupDialog(self):
         return self
 
+    def updatePreferences(self):
+        super().updatePreferences()
+        self._onSaveStateChanged()
+        self._reopen()
+
     def _onSaveStateChanged(self):
         doWrite = self.saveCheckBox.isChecked()
-        self.filenameTextEdit.setEnabled(doWrite)
-        self.selectFileButton.setEnabled(doWrite)
+        self.filenameTextEdit.setEnabled(not doWrite)
+        self.foldernameTextEdit.setEnabled(not doWrite)
+        self.selectFolderButton.setEnabled(not doWrite)
         
-    def _selectFile(self):
-        filename = self.filenameTextEdit.text()
-        filename,_ = QFileDialog.getSaveFileName(self, 'Open file', filename,
-                                                 "Log files (*.log *.txt)")
-        if filename:
-            self.filenameTextEdit.setText(filename)
+    def _selectFolder(self):
+        foldername = self.foldernameTextEdit.text()
+        foldername_ = QFileDialog.getExistingDirectory(self, 'Open Directory', foldername, QFileDialog.ShowDirsOnly)
+        if foldername_:
+            self.foldernameTextEdit.setText(foldername_)
 
     def _onOK(self):
-        filename = self.filenameTextEdit.text()
+        filename = self.filename
+        foldername = self.foldername
+        doWrite = self.doWrite
         self.reflectFromUi()
-        doWrite = self.saveCheckBox.isChecked()
-        updated = self.filename != filename or self.doWrite != doWrite
+        updated = self.filename != filename or self.foldername != foldername or self.doWrite != doWrite
         if updated:
-            newWriter = None
-            if doWrite:
-                try:
-                    newWriter = open(filename, 'w')
-                    self.log(self.LOG_INFO, 'new log file is {}'.format(filename))
-                except Exception as e:
-                    newWriter = None
-                    QMessageBox.critical(self, "Error", '{}'.format(e))
-            oldWriter = self.writer
-            self.writer = newWriter
-            if oldWriter:
-                oldWriter.close()
-                self.log(self.LOG_INFO, 'close old log file, {}'.format(self.filename))
-        self.filename = filename
-        self.doWrite = doWrite
+            self._reopen()
         self.close()
 
     def _onCancel(self):
         self.reflectToUi()
         self.close()
+
+    def _reopen(self):
+        newWriter = None
+        if self.doWrite:
+            try:
+                filename = os.path.join(self.foldername, datetime.now().strftime(self.filename))
+                self.log(self.LOG_INFO, 'new log file is {}'.format(filename))
+                newWriter = open(filename, 'w')
+                self.writer_filename = filename
+            except Exception as e:
+                newWriter = None
+                QMessageBox.critical(self, "Error", '{}'.format(e))
+        oldWriter = self.writer
+        self.writer = newWriter
+        if oldWriter:
+            oldWriter.close()
+            self.log(self.LOG_INFO, 'close old log file, {}'.format(self.writer_filename))
 
 
 class LogImporter(QDialog, SeriaMonComponent):
@@ -119,7 +136,7 @@ class LogImporter(QDialog, SeriaMonComponent):
         grid.setColumnStretch(0, 1)
         self.setLayout(grid)
 
-        self.initPreferences('seriamon.logger.{}.'.format(instanceId),
+        self.initPreferences('seriamon.logimporter.{}.'.format(instanceId),
                              [[ str,    'filename', self.filename, self.filenameTextEdit ]])
 
     def setupDialog(self):
