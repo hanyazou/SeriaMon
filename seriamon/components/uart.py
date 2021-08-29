@@ -224,7 +224,7 @@ class _ReaderThread(QtCore.QThread):
             if self.generation != parent.generation or error:
                 if self.port.is_open:
                     self.port.close()
-                    parent.sink.putLog('---- close port {} -----'.
+                    parent.sink.putLog('---- close port {} -----\n'.
                                        format(self.port.port), parent.compId)
                 if self.parent.connect:
                     self.port.port = parent.portname
@@ -238,13 +238,13 @@ class _ReaderThread(QtCore.QThread):
                         self.port.open()
                         error = False
                     except Exception as e:
-                        parent.sink.putLog('----  fail to open {} -----'.
+                        parent.sink.putLog('----  fail to open {} -----\n'.
                                            format(self.port.port), parent.compId)
-                        self.log(self.LOG_ERROR, e)
+                        parent.log(parent.LOG_ERROR, e)
                         error = True
                         self.msleep(1000)
                         continue
-                    parent.sink.putLog('----  open port {} -----'.
+                    parent.sink.putLog('----  open port {} -----\n'.
                                        format(self.port.port), parent.compId)
                     parent._resetPort(self.port)
                     
@@ -262,7 +262,7 @@ class _ReaderThread(QtCore.QThread):
                 try:
                     self.parent._portHandler(self.port, types)
                 except Exception as e:
-                    self.log(self.LOG_ERROR, e)
+                    parent.log(parent.LOG_ERROR, e)
                     error = True
                     self.msleep(1000)
                     continue

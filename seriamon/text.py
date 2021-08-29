@@ -53,7 +53,7 @@ class TextViewer(QWidget, SeriaMonComponent):
             cursor.insertText("{} ".format(timestamp.isoformat(sep=' ', timespec='milliseconds')))
         if self.compIdCheckBox.isChecked():
             cursor.insertText('{:02} '.format(compId))
-        cursor.insertText('{}\n'.format(value))
+        cursor.insertText('{}\n'.format(str(value).rstrip('\n\r')))
         while Preferences.getInstance().scroll_buffer < self.textEdit.document().blockCount() - 1:
             cursor.movePosition(QTextCursor.Start)
             cursor.select(QTextCursor.BlockUnderCursor)

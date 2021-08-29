@@ -175,7 +175,7 @@ class SeriaMonComponent:
             message = '{} {}'.format(level_str[level], message)
         if self.log_level <= level:
             print(message)
-            self.sink.putLog('SeriaMon: ' + message, compId = 0, types='i')
+            self.sink.putLog('SeriaMon: {}\n'.format(message), compId = 0, types='i')
 
 
 class SeriaMonPort(SeriaMonComponent):
