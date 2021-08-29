@@ -29,9 +29,8 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
         self.prefFilename = os.path.join(os.path.expanduser('~'), '.seriamon.cfg')
         self.NUMPORTS = 4
-        self.MAXQUEUESIZE = 10
+        self.MAXQUEUESIZE = 10000
         self.queue = queue.Queue(self.MAXQUEUESIZE)
-        self._initialized = False
 
         """
            create components
@@ -143,7 +142,6 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
         self.serialPortSignal.connect(self._handler)
         self.show()
-        self._initialized = True
 
     def reflectToUi(self, items=None):
         super().reflectToUi(items)
@@ -167,8 +165,6 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.height = rect.height()
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
-        if not self._initialized:
-            return
         if compId is None:
             compId = '?'
         if types is None:
