@@ -30,6 +30,7 @@ wget "https://bootstrap.pypa.io/get-pip.py" -O ".python/get-pip.py"
 @@python -m pip install Cython
 @@python -m pip install guiqwt
 @@python -m pip install bleak
+@@python -m pip install asyncssh
 
 @@echo.
 @@echo "Setup Windows Python Embeddable...done"
