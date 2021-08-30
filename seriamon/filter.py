@@ -12,23 +12,29 @@ class FilterManagerThread(QtCore.QThread):
         while True:
             with FilterManager._lock:
                 for filter in FilterManager._filters:
-                    filter['filter']._update()
+                    FilterManager._filters[filter]._update()
             time.sleep(0.1)
 
 
 class FilterManager:
     _lock = threading.Lock()
-    _filters = []
+    _filters = {}
     _thread = FilterManagerThread()
 
     def register(filter, name):
         with FilterManager._lock:
             if not FilterManager._thread.isRunning():
                 FilterManager._thread.start()
-            FilterManager._filters.append({'filter': filter, 'name': name})
+            FilterManager._filters[name] = filter
 
     def getFilters():
         return FilterManager._filters
+
+    def getFilter(name):
+        if name in FilterManager._filters.keys():
+            return FilterManager._filters[name]
+        else:
+            None
 
 
 class FilterHook:
