@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import *
 from seriamon.component import *
 from seriamon.utils import *
 from seriamon.filter import FilterManager
+from seriamon.runtime import ScriptRuntime
 
 class Component(QWidget, SeriaMonComponent):
 
@@ -130,7 +131,7 @@ class Component(QWidget, SeriaMonComponent):
                 if argname in argspec.annotations.keys():
                     self.annotations[i] = argspec.annotations[argname]
                     self.log(self.LOG_INFO, 'arg {} is annotated with {}'.format(argname, self.annotations[i]))
-                if self.annotations[i] == SeriaMonPort:
+                if self.annotations[i] == ScriptRuntime.Port:
                     ports = [ filter for filter in FilterManager.getFilters().keys() ]
                     self.argComboBoxies[i].setEditable(False)
                     self._updateComboBox(self.argComboBoxies[i], self.args[i], ports)
@@ -139,6 +140,8 @@ class Component(QWidget, SeriaMonComponent):
                     self.argComboBoxies[i].clear()
 
                 if offs <= i:
+                    if self.argComboBoxies[i] is not None and self.argComboBoxies[i] != '':
+                        continue
                     value = argspec.defaults[i - offs]
                     self.log(self.LOG_INFO, 'defaults[{}] = {}'.format(i - offs, value))
                     if not isinstance(value, str):
@@ -199,7 +202,7 @@ class _Thread(QtCore.QThread):
             """
                 run the script
             """
-            if self.generation == parent.generation:
+            if parent.loadingPreferences or self.generation == parent.generation:
                 self.msleep(1000)
                 continue
             self.generation = parent.generation
@@ -208,7 +211,11 @@ class _Thread(QtCore.QThread):
                 continue
             try:
                 parent.log(parent.LOG_INFO, "start script {}".format(parent.script))
-                parent.module.log = parent.log
+                for attr in parent.module.__dict__.keys():
+                    if isinstance(getattr(parent.module, attr), ScriptRuntime) or getattr(parent.module, attr) is ScriptRuntime:
+                        rt = ScriptRuntime()
+                        rt.set_logger(parent)
+                        setattr(parent.module, attr, rt)
                 args = []
                 for i in range(len(parent.argspec.args)):
                     arg = None
