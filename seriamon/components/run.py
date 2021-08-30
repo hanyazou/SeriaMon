@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import *
 from seriamon.component import *
 from seriamon.utils import *
 from seriamon.filter import FilterManager
-from seriamon.runtime import ScriptRuntime
+from seriamon.runtime import ScriptRuntime, FilterWrapper
 
 class Component(QWidget, SeriaMonComponent):
 
@@ -219,9 +219,9 @@ class _Thread(QtCore.QThread):
                 args = []
                 for i in range(len(parent.argspec.args)):
                     arg = None
-                    if parent.annotations[i] == SeriaMonPort:
+                    if parent.annotations[i] == ScriptRuntime.Port:
                         if parent.args[i] in FilterManager.getFilters().keys():
-                            arg = FilterManager.getFilter(parent.args[i])
+                            arg = FilterWrapper(FilterManager.getFilter(parent.args[i]))
                         else:
                             arg = parent.args[i]
                     elif parent.annotations[i]:
