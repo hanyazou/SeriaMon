@@ -128,6 +128,9 @@ class SeriaMonComponent:
             else:
                 widget = None
             if value is not None and typ in (str, int, float) and isinstance(widget, QComboBox):
+                if widget.isEditable():
+                    widget.setCurrentText(str(value))
+                    continue
                 index = widget.findData(typ(value))
                 if 0 <= index:
                     widget.setCurrentIndex(index)
@@ -157,7 +160,10 @@ class SeriaMonComponent:
             else:
                 widget = None
             if isinstance(widget, QComboBox):
-                setattr(self, name, typ(widget.currentData()))
+                if widget.isEditable():
+                    setattr(self, name, typ(widget.currentText()))
+                else:
+                    setattr(self, name, typ(widget.currentData()))
             elif typ is bool and isinstance(widget, QCheckBox):
                 setattr(self, name, typ(widget.isChecked()))
             elif typ in (str, int, float) and isinstance(widget, QLineEdit):
