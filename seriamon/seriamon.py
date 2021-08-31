@@ -59,6 +59,10 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.components.append(self.logImporter)
         id += 1
 
+        self.splitter = QSplitter(QtCore.Qt.Vertical)
+        self.splitter.addWidget(self.plotter)
+        self.splitter.addWidget(self.textViewer)
+
         component_folder = os.path.join(os.path.dirname(__file__), 'components')
         self.log(self.LOG_DEBUG, 'Load components from {}'.format(component_folder))
         for module_name in [x[:-3] for x in os.listdir(component_folder) if x.endswith('.py')]:
@@ -91,7 +95,8 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                              [[ int,    'left',         None    ],
                               [ int,    'top',          None    ],
                               [ int,    'width',        None    ],
-                              [ int,    'height',       None    ]])
+                              [ int,    'height',       None    ],
+                              [ str,    'splitterState',None    ]])
 
         self._loadPreferences()
 
@@ -113,8 +118,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
             comp.updated.connect(self._onUpdatedComponent)
 
         grid = QGridLayout()
-        grid.addWidget(self.plotter, 0, 0, 1, 7)
-        grid.addWidget(self.textViewer, 1, 0, 1, 7)
+        grid.addWidget(self.splitter, 0, 0, 2, 7)
         grid.addWidget(self.tabs, 2, 0, 1, 7, alignment=QtCore.Qt.AlignRight)
         grid.setRowStretch(0, 1)
         grid.setRowStretch(1, 1)
@@ -157,6 +161,8 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         if self.height is None:
             self.height = rect.height()
         self.setGeometry(self.left, self.top, self.width, self.height)
+        if self.splitterState:
+            self.splitter.restoreState(bytearray.fromhex(self.splitterState))
 
     def reflectFromUi(self, items=None):
         super().reflectFromUi(items)
@@ -165,6 +171,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.top = rect.top()
         self.width = rect.width()
         self.height = rect.height()
+        self.splitterState = ''.join(['{:02x}'.format(data[0]) for data in self.splitter.saveState()])
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
         if self.stopped:
