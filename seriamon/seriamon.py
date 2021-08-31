@@ -31,6 +31,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.NUMPORTS = 4
         self.MAXQUEUESIZE = 10000
         self.queue = queue.Queue(self.MAXQUEUESIZE)
+        self.stopped = False
 
         """
            create components
@@ -43,6 +44,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
 
         # load global preferences at first and load all preferences later again
         self._loadPreferences()
+        self.log_level = Preferences.getInstance().default_log_level
 
         self.plotter = Plotter(compId=id, sink=self)
         self.components.append(self.plotter)
@@ -165,6 +167,8 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.height = rect.height()
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
+        if self.stopped:
+            return
         if compId is None:
             compId = '?'
         if types is None:
@@ -186,6 +190,15 @@ class mainWindow(QMainWindow, SeriaMonComponent):
             if method:
                 method()
 
+    def shutdown(self):
+        for comp in self.components:
+            if comp is self:
+                continue
+            method = getattr(comp, 'shutdown', None)
+            if method:
+                method()
+        self.stopped = True
+
     def clearLog(self):
         for comp in self.components:
             if comp is self:
@@ -196,6 +209,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
 
     def closeEvent(self, event):
         self._savePreferences()
+        self.shutdown()
         QMainWindow.closeEvent(self, event)
 
     def _savePreferences(self):

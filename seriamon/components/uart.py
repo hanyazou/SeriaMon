@@ -155,6 +155,12 @@ class Component(QWidget, SeriaMonPort):
         self.connect = False
         self.updatePreferences()
 
+    def shutdown(self):
+        if self.thread:
+            self.log(self.LOG_DEBUG, 'Stop internal thread...')
+            self.thread.stayAlive = False
+            self.thread.wait()
+
     def updatePreferences(self):
         super().updatePreferences()
         self.portnameComboBox.setEnabled(not self.connect)

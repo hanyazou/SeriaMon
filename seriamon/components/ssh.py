@@ -87,8 +87,15 @@ class Component(QWidget, SeriaMonPort):
         return grid
 
     def stopLog(self):
-        self.connect = False
+        self.run = False
         self.updatePreferences()
+
+    def shutdown(self):
+        if self.thread:
+            self.log(self.LOG_DEBUG, 'Stop internal thread...')
+            self.thread.stayAlive = False
+            self.thread.task.cancel()
+            self.thread.wait()
 
     def updatePreferences(self):
         super().updatePreferences()
@@ -112,14 +119,20 @@ class _Thread(QtCore.QThread):
         self.generation = parent.generation
         self.conn = None
         self.proc = None
-        self.wait = None
+        self.delay = None
 
     def run(self):
         asyncio.run(self.async_run())
 
     async def async_run(self):
-        await asyncio.gather(self.reconnect(), self.send(),
-                             self.receive('stdout'), self.receive('stderr'))
+        #self.task = asyncio.ensure_future(self.async_run())
+        self.task = asyncio.ensure_future(asyncio.gather(
+            self.reconnect(), self.send(),
+            self.receive('stdout'), self.receive('stderr')))
+        try:
+            await self.task
+        except asyncio.CancelledError as e:
+            pass
 
     async def reconnect(self):
         parent = self.parent
@@ -152,10 +165,10 @@ class _Thread(QtCore.QThread):
                     parent.sink.putLog('---- close {} -----\n'.
                                        format(parent.host), parent.compId)
                     self.conn = None
-                if self.wait:
-                    wait = self.wait
-                    self.wait = None
-                    await asyncio.sleep(wait)
+                if self.delay:
+                    delay = self.delay
+                    self.delay = None
+                    await asyncio.sleep(delay)
                 if parent.connect:
                     try:
                         self.conn = await asyncssh.connect(parent.host, port=22,
@@ -199,7 +212,7 @@ class _Thread(QtCore.QThread):
                         await asyncio.sleep(1.0)
                 except Exception as e:
                     if isinstance(e, ConnectionLost):
-                        self.wait = 5.0
+                        self.delay = 5.0
                     else:
                         traceback.print_exc()
                         parent.log(parent.LOG_ERROR, e)
@@ -234,7 +247,7 @@ class _Thread(QtCore.QThread):
                     self.error = False
                 except Exception as e:
                     if isinstance(e, ConnectionLost):
-                        self.wait = 5.0
+                        self.delay = 5.0
                     else:
                         traceback.print_exc()
                         parent.log(parent.LOG_ERROR, e)
