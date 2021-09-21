@@ -27,11 +27,10 @@ SOFTWARE.
 import sys
 import usb
 import argparse
-from seriamon.usbutils import _usb_portid
-from seriamon.usbutils import _usb_get_string
-from seriamon.usbutils import _usb_device_name
+from seriamon.gpio import SeriaMonGpioInterface
+from seriamon.usbutils import USBUtil
 
-class USB57x4():
+class USB57x4(SeriaMonGpioInterface):
     '''
     AN1903 Configuration Options for USB5734, USB5744, and USB5742
     CONFIGURATION REGISTERS
@@ -76,7 +75,7 @@ class USB57x4():
         self.dev = dev
 
     def __str__(self):
-        return _usb_device_name(self.dev)
+        return USBUtil.device_name(self.dev)
 
     def _read_register(self, addr, len):
         bmRequestType = usb.util.build_request_type(usb.util.CTRL_IN, usb.util.CTRL_TYPE_VENDOR,
@@ -125,7 +124,7 @@ class USB57x4():
         for port in self.portmap:
             print(f'   Port {port}: {"on" if self.port_power(port) else "off"}')
 
-    def configure(self):
+    def configure(self) -> None:
         regs = {
             ( 1, self.REG_USB3_PRT_CFG_SEL1, self.REG_OCS_SEL1 ),
             ( 2, self.REG_USB3_PRT_CFG_SEL2, self.REG_OCS_SEL2 ),
@@ -142,7 +141,7 @@ class USB57x4():
                 dir |= (1 << gpio)
         self._write_register32(self.REG_GPIO_DIR, dir)
 
-    def port_power(self, port, onoff=None):
+    def port_power(self, port, onoff=None) -> bool:
         bit = (1 << self.portmap[port])
         out = self._read_register32(self.REG_GPIO_OUT)
         if onoff is None:
@@ -152,14 +151,15 @@ class USB57x4():
         else:
             out &= ~bit
         self._write_register32(self.REG_GPIO_OUT, out)
-        
-    def get_hubs(verbose=False):
+        return onoff
+
+    def get_list(verbose=False) -> list:
         hubs = []
         for dev in usb.core.find(find_all=True):
             if (dev.idVendor, dev.idProduct) in USB57x4.supported_ids:
                 hubs.append(USB57x4(dev))
             if (verbose):
-                print(_usb_device_name(dev))
+                print(USBUtil.device_name(dev))
         if (verbose):
             print(f'{len(hubs)} smart{"s" if len(hubs) else ""} hub found')
         return hubs
@@ -177,7 +177,7 @@ if __name__ == "__main__":
                            help="increase output verbosity")
     args = argparser.parse_args()
 
-    hubs = USB57x4.get_hubs(verbose=args.verbose)
+    hubs = USB57x4.get_list(verbose=args.verbose)
 
     if not hubs:
         print()

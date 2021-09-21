@@ -2,6 +2,7 @@ import sys
 import os
 import queue
 import importlib
+import inspect
 from datetime import datetime
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
@@ -13,6 +14,7 @@ from .logger import Logger, LogImporter
 from .filter import PortFilter
 from .preferences_dialog import PreferencesDialog
 from .utils import Util
+from .gpio import *
 
 class mainWindow(QMainWindow, SeriaMonComponent):
 
@@ -64,9 +66,22 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.splitter.addWidget(self.textViewer)
 
         component_folder = os.path.join(os.path.dirname(__file__), 'components')
+        """
+        Load plugin classes first so that components can use them
+        """
+        self.log(self.LOG_DEBUG, 'Load plugin classes from {}'.format(component_folder))
+        for module_name in [x[:-3] for x in os.listdir(component_folder) if x.endswith('.py')]:
+            module = importlib.import_module('.components.' + module_name, 'seriamon')
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                if issubclass(obj, SeriaMonGpioInterface) and obj is not SeriaMonGpioInterface:
+                    self.log(self.LOG_DEBUG, f'    add gpio {obj} from {os.path.join(component_folder, module_name)}')
+                    GpioManager.register(name, obj)
+
         self.log(self.LOG_DEBUG, 'Load components from {}'.format(component_folder))
         for module_name in [x[:-3] for x in os.listdir(component_folder) if x.endswith('.py')]:
             module = importlib.import_module('.components.' + module_name, 'seriamon')
+            if not 'Component' in [ name for name, obj in inspect.getmembers(module, inspect.isclass) ]:
+                continue
             filter = PortFilter(compId=id, sink=self)
             id += 1
             component = module.Component(compId=id, sink=filter)
