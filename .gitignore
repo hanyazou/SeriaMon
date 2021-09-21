@@ -1,3 +1,6 @@
 venv
 __pycache__
 *.pyc
+.python
+.vscode
+*.code-workspace
