@@ -1,3 +1,29 @@
+'''
+
+The MIT License (MIT)
+
+Copyright (c) 2021 @hanyazou
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+'''
+
 import sys
 import usb
 import argparse
@@ -61,6 +87,13 @@ def _usb_get_string(dev: usb.Device, index):
         string = string.rstrip(' ')
     return string
 
+def _usb_device_name(dev: usb.core.Device):
+    s = (f'{dev.idVendor:04x} {dev.idProduct:04x} @ 0x{_usb_portid(dev):08x}: '
+            f'{_usb_get_string(dev, dev.iManufacturer)} '
+            f'{_usb_get_string(dev, dev.iProduct)}'
+            f'{" " + _usb_get_string(dev, dev.iSerialNumber) if dev.iSerialNumber else ""}')
+    return s
+
 
 class USBSmartHub():
 
@@ -69,9 +102,7 @@ class USBSmartHub():
 
     def show_status(self):
         dev = self.dev
-        print(f'{dev.idVendor:04x} {dev.idProduct:04x} @ 0x{_usb_portid(dev):08x}: '
-              f'{_usb_get_string(dev, dev.iManufacturer)} '
-              f'{_usb_get_string(dev, dev.iProduct)} {_usb_get_string(dev, dev.iSerialNumber)}')
+        print(_usb_device_name(dev))
         for port in range(4):
             bmRequestType = usb.util.build_request_type(usb.util.CTRL_IN, usb.util.CTRL_TYPE_CLASS,
                                                         usb.util.CTRL_RECIPIENT_OTHER)
@@ -166,7 +197,7 @@ if __name__ == "__main__":
     argparser.add_argument("actions", type=str, nargs='*',
                            help="Specify action {on|off}")
     argparser.add_argument("-p", "--port", dest="port", type=int,
-                           help="Aggregate other threads into anonymous one")
+                           help="Specify usb port number")
     argparser.add_argument("-v", "--verbose", dest="verbose", action="store_true",
                            help="increase output verbosity")
     args = argparser.parse_args()
@@ -179,5 +210,5 @@ if __name__ == "__main__":
     for action in args.actions:
         hubs[0].port_power(args.port, True if action == 'on' else False)
     for dev in hubs:
-        hubs[0].show_status()
+        dev.show_status()
     sys.exit(0)
