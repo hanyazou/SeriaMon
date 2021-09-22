@@ -30,6 +30,7 @@ class SeriaMonComponent:
         self.loadingPreferences = False
         self.preferencePoperties = []
         self._seriamoncomponent_status = self.STATUS_NONE
+        self._initialized = None
         if self.component_default_name:
             name = self.component_default_name
         else:
@@ -38,6 +39,9 @@ class SeriaMonComponent:
             self.setComponentName('{} {}'.format(name, instanceId))
         else:
             self.setComponentName(name)
+
+    def initialized(self):
+        self.initialized = True
 
     def setStatus(self, status):
         self._seriamoncomponent_status = status

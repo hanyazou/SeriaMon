@@ -4,6 +4,8 @@ import queue
 import importlib
 import inspect
 from datetime import datetime
+import traceback
+
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
@@ -163,6 +165,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
         self.serialPortSignal.connect(self._handler)
         self.show()
+        self.initialized()
 
     def reflectToUi(self, items=None):
         super().reflectToUi(items)
@@ -212,6 +215,15 @@ class mainWindow(QMainWindow, SeriaMonComponent):
             if method:
                 method()
 
+    def initialized(self):
+        for comp in self.components:
+            if comp is self:
+                continue
+            method = getattr(comp, 'initialized', None)
+            if method:
+                method()
+        super().initialized()
+
     def shutdown(self):
         for comp in self.components:
             if comp is self:
@@ -241,6 +253,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                 if isinstance(comp, SeriaMonComponent):
                     comp.savePreferences(preferences)
             except Exception as e:
+                traceback.print_exc()
                 self.log(self.LOG_ERROR, e)
         with open(self.prefFilename, 'w') as writer:
             for key, value in preferences.items():
@@ -257,16 +270,19 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                     pos = line.index(':')
                     preferences[line[0:pos]] = line[pos+2:]
                 except Exception as e:
+                    traceback.print_exc()
                     self.log(self.LOG_ERROR, e)
                     self.log(self.LOG_ERROR, line)
             reader.close()
         except Exception as e:
+            traceback.print_exc()
             self.log(self.LOG_ERROR, e)
         for comp in self.components:
             try:
                 if isinstance(comp, SeriaMonComponent):
                     comp.loadPreferences(preferences)
             except Exception as e:
+                traceback.print_exc()
                 self.log(self.LOG_ERROR, e)
 
     def _handler(self, msg):

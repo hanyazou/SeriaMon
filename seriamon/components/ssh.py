@@ -41,11 +41,12 @@ class Component(QWidget, SeriaMonPort):
             while self.queue.unfinished_tasks:
                 self.queue.all_tasks_done.wait(Util.remaining_seconds(deadline))
                 if deadline <= Util.now():
-                    if not self.queue.empty():
-                        self.queue.get_nowait()
-                    return False
+                    break
         finally:
             self.queue.all_tasks_done.release()
+        if not self.queue.empty():
+            self.queue.get_nowait()
+            return False
         return True
 
     def _setupUart(self):

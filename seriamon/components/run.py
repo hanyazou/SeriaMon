@@ -19,11 +19,12 @@ class Component(QWidget, SeriaMonComponent):
     def __init__(self, compId, sink, instanceId=0):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
-        self.generation = 0
+        self.run = False
+        self.running = False
+
         self.module = None
         self.args = [None] * self.MAXARGS
         self.annotations = [None] * self.MAXARGS
-        self.error = None
 
         self.scriptComboBox = ComboBox()
         self.scriptComboBox.aboutToBeShown.connect(self._updateScripts)
@@ -55,31 +56,45 @@ class Component(QWidget, SeriaMonComponent):
         grid.addWidget(self.runButton, 2, 2)
 
         self.setLayout(grid)
-        self.thread = _Thread(self)
-        self.thread.start()
+        self.thread = None
 
     def setupWidget(self):
         return self
 
-    def stopLog(self):
-        self.run = False
-        self.updatePreferences()
+    def start(self):
+        if self.running:
+            self.log(self.LOG_DEBUG, 'Script is already running.')
+            return
+        self.log(self.LOG_DEBUG, 'Start script...')
+        self.thread = _Thread(self)
+        self.running = True
+        self.thread.start()
+
+    def stop(self):
+        if not self.running:
+            self.log(self.LOG_DEBUG, 'Script is not running.')
+            return
+        if self.thread:
+            self.log(self.LOG_DEBUG, 'Stop script...')
+            self.thread.stop()
+            self.thread.wait()
+            self.log(self.LOG_DEBUG, 'Stop script...done')
+        self._thead = None
+        self.running = False
 
     def shutdown(self):
-        if self.thread:
-            self.log(self.LOG_DEBUG, 'Stop internal thread...')
-            self.thread.stayAlive = False
-            self.thread.wait()
+        self.stop()
 
     def updatePreferences(self):
         super().updatePreferences()
         self.scriptComboBox.setEnabled(not self.run)
         for i in range(len(self.argComboBoxies)):
             self.argComboBoxies[i].setEnabled(not self.run)
-        self.runButton.setText('Stop' if self.run else 'Run')
         if self.run:
-            self.error = False
-        self.generation += 1
+            self.start()
+        else:
+            self.stop()
+        self.runButton.setText('Stop' if self.run else 'Run')
 
     def _updateComboBox(self, combobox, choice, choices):
         current = combobox.currentText()
@@ -184,61 +199,58 @@ class _Thread(QtCore.QThread):
         super().__init__()
         self.parent = parent
         self.stayAlive = True
+        self.thread_context = None
+
+    def stop(self):
+        self.stayAlive = False
+        Util.thread_kill(self.thread_context)
 
     def run(self):
+        self.thread_context = Util.thread_context()
         parent = self.parent
-        prevStatus = parent.STATUS_NONE
-        self.generation = parent.generation
 
         while self.stayAlive:
-            """
-                update status indicator
-            """
-            if parent.run:
-                if parent.error:
-                    status = parent.STATUS_ERROR
-                else:
-                    status = parent.STATUS_ACTIVE
-            else:
-                status = parent.STATUS_DEACTIVE
-            if prevStatus != status:
-                parent.setStatus(status)
-                prevStatus = status
+            if not parent._initialized:
+                break
+            self.msleep(100)
+        self.msleep(100)
 
-            """
-                run the script
-            """
-            if parent.loadingPreferences or self.generation == parent.generation:
-                self.msleep(1000)
-                continue
-            self.generation = parent.generation
-            if not parent.run:
-                self.msleep(1000)
-                continue
-            try:
-                parent.log(parent.LOG_INFO, "start script {}".format(parent.script))
-                for attr in parent.module.__dict__.keys():
-                    if isinstance(getattr(parent.module, attr), ScriptRuntime) or getattr(parent.module, attr) is ScriptRuntime:
-                        rt = ScriptRuntime()
-                        rt.set_logger(parent)
-                        setattr(parent.module, attr, rt)
-                args = []
-                for i in range(len(parent.argspec.args)):
-                    arg = None
-                    if parent.annotations[i] == ScriptRuntime.Port:
-                        if parent.args[i] in FilterManager.getFilters().keys():
-                            arg = FilterWrapper(FilterManager.getFilter(parent.args[i]))
-                        else:
-                            arg = parent.args[i]
-                    elif parent.annotations[i]:
-                        arg = parent.annotations[i](parent.args[i])
+        parent.setStatus(parent.STATUS_ACTIVE)
+
+        """
+            run the script
+        """
+        try:
+            parent.log(parent.LOG_INFO, "start script {}".format(parent.script))
+            for attr in parent.module.__dict__.keys():
+                if isinstance(getattr(parent.module, attr), ScriptRuntime) or getattr(parent.module, attr) is ScriptRuntime:
+                    rt = ScriptRuntime()
+                    rt.set_logger(parent)
+                    setattr(parent.module, attr, rt)
+            args = []
+            for i in range(len(parent.argspec.args)):
+                arg = None
+                if parent.annotations[i] == ScriptRuntime.Port:
+                    if parent.args[i] in FilterManager.getFilters().keys():
+                        arg = FilterWrapper(FilterManager.getFilter(parent.args[i]))
                     else:
                         arg = parent.args[i]
-                    args.append(arg)
-                parent.module.run(*args)
-                parent.log(parent.LOG_INFO, "end script {}".format(parent.script))
-            except Exception as e:
-                traceback.print_exc()
-                parent.log(parent.LOG_ERROR, e)
-                parent.error = True
-                self.msleep(1000)
+                elif parent.annotations[i]:
+                    arg = parent.annotations[i](parent.args[i])
+                else:
+                    arg = parent.args[i]
+                args.append(arg)
+            parent.module.run(*args)
+            parent.log(parent.LOG_INFO, "end script {}".format(parent.script))
+        except Util.ThreadKilledException as e:
+            parent.setStatus(parent.STATUS_DEACTIVE)
+        except Exception as e:
+            traceback.print_exc()
+            parent.log(parent.LOG_ERROR, e)
+            parent.setStatus(parent.STATUS_ERROR)
+        else:
+            parent.setStatus(parent.STATUS_DEACTIVE)
+
+        parent.run = False
+        parent.running = False
+        parent.updatePreferences()
