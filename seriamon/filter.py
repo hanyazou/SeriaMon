@@ -123,26 +123,33 @@ class PortFilter(SeriaMonComponent):
                 pass
         return False
 
-    def waitFor(self, pattern=None, timeout=None, silence=None):
+    def waitFor(self, pattern=None, timeout=None, silence=None, command=None):
         deadline = Util.deadline(timeout)
-        self.log(self.LOG_DEBUG, "waitFor('{}', pattern={}, silence={}, deadline={})".format(
-            self._source.getComponentName(), pattern if pattern is None else "'" + pattern + "'", silence, deadline))
+        self.log(self.LOG_DEBUG, "waitFor('{}', pattern={}, silence={}, deadline={}, command={})".format(
+            self._source.getComponentName(), pattern if pattern is None else "'" + pattern + "'",
+            silence, deadline, command))
         lines = []
-        with self._condvar, self.hook(lambda line: [ lines.append(line) ], pattern=pattern):
-            if silence:
-                since = Util.now()
-                while Util.now() < deadline and Util.thread_alive():
-                    Util.thread_wait(self._condvar, min(silence, Util.remaining_seconds(deadline)))
-                    if silence <= Util.now() - since and len(lines) == 0:
-                        return True
+        with self.hook(lambda line: [ lines.append(line) ], pattern=pattern):
+            if command and not self.write(command, timeout=deadline):
+                self.log(self.LOG_ERROR, "failed to write command {}".format(command))
+                return False
+            with self._condvar:
+                if silence:
+                    since = Util.now()
+                    while Util.now() < deadline and Util.thread_alive():
+                        Util.thread_wait(self._condvar, min(silence, Util.remaining_seconds(deadline)))
+                        if silence <= Util.now() - since and len(lines) == 0:
+                            return True
+                        if 0 < len(lines):
+                            since = Util.now()
+                            lines = []
+                else:
                     if 0 < len(lines):
-                        since = Util.now()
-                        lines = []
-            else:
-                while Util.now() < deadline and Util.thread_alive():
-                    Util.thread_wait(self._condvar, Util.remaining_seconds(deadline))
-                    if 0 < len(lines):
                         return True
+                    while Util.now() < deadline and Util.thread_alive():
+                        Util.thread_wait(self._condvar, Util.remaining_seconds(deadline))
+                        if 0 < len(lines):
+                            return True
         return False
 
     def command(self, command, pattern=None, silence=None, timeout=None):
@@ -153,10 +160,7 @@ class PortFilter(SeriaMonComponent):
         if silence and not self.waitFor(silence=silence, timeout=deadline):
             raise TimeoutError()
         with self.hook(lambda line: res.append(line)):
-            if not self.write(command, timeout=deadline):
-                self.log(self.LOG_ERROR, "failed to write command {}".format(command))
-                raise TimeoutError()
-            if pattern and not self.waitFor(pattern=pattern, timeout=deadline):
+            if pattern and not self.waitFor(command=command, pattern=pattern, timeout=deadline):
                 raise TimeoutError()
             if silence and not self.waitFor(silence=silence, timeout=deadline):
                 raise TimeoutError()
