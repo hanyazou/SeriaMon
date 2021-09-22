@@ -206,7 +206,7 @@ class _Thread(QtCore.QThread):
         Util.thread_kill(self.thread_context)
 
     def run(self):
-        self.thread_context = Util.thread_context()
+        self.thread_context = Util.thread_context(f'{self.parent.getComponentName()}')
         parent = self.parent
 
         while self.stayAlive:

@@ -219,6 +219,7 @@ class _ReaderThread(QtCore.QThread):
             await scanner.stop()
 
     def run(self):
+        self.thread_context = Util.thread_context(f'{self.parent.getComponentName()}')
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.asyncRun(loop))

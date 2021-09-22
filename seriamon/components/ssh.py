@@ -123,6 +123,7 @@ class _Thread(QtCore.QThread):
         self.delay = None
 
     def run(self):
+        self.thread_context = Util.thread_context(f'{self.parent.getComponentName()}')
         asyncio.run(self.async_run())
 
     async def async_run(self):

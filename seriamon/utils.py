@@ -84,8 +84,10 @@ class Util:
         storage = getattr(thread, Util._thread_storage_name, None)
         return storage
 
-    def thread_context() -> threading.Thread:
+    def thread_context(name: str = None) -> threading.Thread:
         ctx = threading.current_thread()
+        if name:
+            ctx.name = name
         setattr(ctx, Util._thread_storage_name, Util._ThreadStorage())
         return ctx
 

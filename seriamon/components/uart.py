@@ -204,6 +204,7 @@ class _ReaderThread(QtCore.QThread):
         self.port = serial.Serial(timeout=0.5)  # timeout is 500ms
 
     def run(self):
+        self.thread_context = Util.thread_context(f'{self.parent.getComponentName()}')
         parent = self.parent
         error = False
         prevStatus = parent.STATUS_NONE

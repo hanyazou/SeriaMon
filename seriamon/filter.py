@@ -9,6 +9,7 @@ from .utils import Util
 
 class FilterManagerThread(QtCore.QThread):
     def run(self):
+        self.thread_context = Util.thread_context(f'FilterManager')
         while True:
             with FilterManager._lock:
                 for filter in FilterManager._filters:
