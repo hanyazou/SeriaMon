@@ -21,9 +21,11 @@ class Util:
     _logger = None
     _thread_storage_name = '__seriamon_thread_storage__'
 
+    @staticmethod
     def _hexstr(buf):
         return ''.join(["\\%02x" % ord(chr(x)) for x in buf]).strip()
 
+    @staticmethod
     def decode(data):
         if isinstance(data, str):
             return data
@@ -32,18 +34,23 @@ class Util:
         except UnicodeDecodeError as e:
             return data[:e.start].decode() + Util._hexstr(data[e.start:e.end]) + Util.decode(data[e.end:])
     
+    @staticmethod
     def after_seconds(seconds):
         return Util.now() + datetime.timedelta(seconds=seconds)
     
+    @staticmethod
     def before_seconds(seconds):
         return Util.now() + datetime.timedelta(seconds=-seconds)
     
+    @staticmethod
     def remaining_seconds(deadline):
         return min(threading.TIMEOUT_MAX, (deadline - Util.now()).total_seconds())
     
+    @staticmethod    
     def now():
         return datetime.datetime.now()
 
+    @staticmethod
     def deadline(timeout=None, seconds=None):
         if seconds:
             return Util.after_seconds(seconds)
@@ -58,6 +65,7 @@ class Util:
             raise Exception("Could not interplet value of type {} to deadline.".format(type(timeout)))
         return datetime.datetime.max
 
+    @staticmethod
     def set_logger(logger):
         Util._logger = logger
 
@@ -71,6 +79,7 @@ class Util:
             self.exception = None
             self.waitchannel = None
 
+    @staticmethod
     class ThreadKilledException(Exception):
         def __init__(self):
             pass
@@ -78,12 +87,14 @@ class Util:
         def __str__(self):
             return 'Killed'
 
+    @staticmethod
     def _thread_storage(thread: threading.Thread = None) -> _ThreadStorage:
         if not thread:
             thread = threading.current_thread()
         storage = getattr(thread, Util._thread_storage_name, None)
         return storage
 
+    @staticmethod
     def thread_context(name: str = None) -> threading.Thread:
         ctx = threading.current_thread()
         if name:
@@ -91,13 +102,15 @@ class Util:
         setattr(ctx, Util._thread_storage_name, Util._ThreadStorage())
         return ctx
 
-    def thread_alive() -> None:
+    @staticmethod
+    def thread_alive() -> bool:
         if not (storage := Util._thread_storage()):
             return True
         if storage.killed:
             raise storage.exception
         return True
 
+    @staticmethod
     def thread_wait(condvar: threading.Condition, timeout: float = None):
         if not (storage := Util._thread_storage()):
             return
@@ -105,6 +118,7 @@ class Util:
         condvar.wait(timeout)
         storage.waitchannel = None
 
+    @staticmethod
     def thread_kill(ctx: threading.Thread, e: Exception = None):
         if not (storage := getattr(ctx, Util._thread_storage_name, None)):
             return

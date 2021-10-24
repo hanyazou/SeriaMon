@@ -3,40 +3,10 @@ import time
 import re
 import traceback
 from datetime import datetime
+from typing import Dict
 from PyQt5 import QtCore
 from .component import SeriaMonComponent
 from .utils import Util
-
-class FilterManagerThread(QtCore.QThread):
-    def run(self):
-        self.thread_context = Util.thread_context(f'FilterManager')
-        while True:
-            with FilterManager._lock:
-                for filter in FilterManager._filters:
-                    FilterManager._filters[filter]._update()
-            time.sleep(0.1)
-
-
-class FilterManager:
-    _lock = threading.Lock()
-    _filters = {}
-    _thread = FilterManagerThread()
-
-    def register(filter, name):
-        with FilterManager._lock:
-            if not FilterManager._thread.isRunning():
-                FilterManager._thread.start()
-            FilterManager._filters[name] = filter
-
-    def getFilters():
-        return FilterManager._filters
-
-    def getFilter(name):
-        if name in FilterManager._filters.keys():
-            return FilterManager._filters[name]
-        else:
-            None
-
 
 class FilterHook:
     def __init__(self, filter, callback):
@@ -184,3 +154,37 @@ class PortFilter(SeriaMonComponent):
             self.setStatus(self._source.getStatus())
         if self._remain and self.remain_ts < Util.before_seconds(1):
             self.flush()
+
+
+class FilterManagerThread(QtCore.QThread):
+    def run(self):
+        self.thread_context = Util.thread_context(f'FilterManager')
+        while True:
+            with FilterManager._lock:
+                for filter in FilterManager._filters:
+                    FilterManager._filters[filter]._update()
+            time.sleep(0.1)
+
+
+class FilterManager:
+    _lock = threading.Lock()
+    _filters: Dict[str, PortFilter] = {}
+    _thread = FilterManagerThread()
+
+    @staticmethod
+    def register(filter, name):
+        with FilterManager._lock:
+            if not FilterManager._thread.isRunning():
+                FilterManager._thread.start()
+            FilterManager._filters[name] = filter
+
+    @staticmethod
+    def getFilters():
+        return FilterManager._filters
+
+    @staticmethod
+    def getFilter(name):
+        if name in FilterManager._filters.keys():
+            return FilterManager._filters[name]
+        else:
+            None

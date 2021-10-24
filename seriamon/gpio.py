@@ -1,5 +1,6 @@
 import abc
 import threading
+from typing import List
 
 class SeriaMonGpioInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -7,22 +8,23 @@ class SeriaMonGpioInterface(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def configure() -> None:
+    def configure(self) -> None:
         pass
 
     @abc.abstractmethod
-    def get_list(verbose=False) -> list:
+    def get_list(self, verbose=False) -> list:
         pass
 
 
 class GpioManager:
     _lock = threading.Lock()
-    _classes = []
+    _classes: List[SeriaMonGpioInterface] = []
 
     def register(name, obj) -> None:
         with GpioManager._lock:
             GpioManager._classes.append(obj)
 
+    @staticmethod
     def get_list() -> list:
         devices = []
         for cls in GpioManager._classes:
