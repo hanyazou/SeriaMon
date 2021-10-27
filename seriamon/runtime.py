@@ -1,3 +1,4 @@
+import threading
 from seriamon.utils import Util
 
 class FilterWrapper:
@@ -10,7 +11,8 @@ class FilterWrapper:
         self.pattern = pattern
 
     def setTimeout(self, timeout):
-        self.timeout = timeout
+        (self.timeout, timeout) = (timeout, self.timeout)
+        return timeout
 
     def getSource(self):
         return self.filter.getSource()
@@ -53,6 +55,7 @@ class ScriptRuntime:
 
     def __init__(self):
         self._logger = None
+        self._condvar = threading.Condition()
 
     def set_logger(self, logger):
         self._logger = logger
@@ -60,3 +63,9 @@ class ScriptRuntime:
     def log(self, level, message=None):
         if self._logger:
             self._logger.log(level, message)
+
+    def sleep(self, timeout):
+        deadline = Util.deadline(timeout)
+        with self._condvar:
+            while Util.now() < deadline and Util.thread_alive():
+                Util.thread_wait(self._condvar, Util.remaining_seconds(deadline))
