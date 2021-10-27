@@ -184,6 +184,8 @@ class SeriaMonComponent:
             message = '{} {:>16}: {}'.format(level_str[level], self.getComponentName(), message)
         else:
             message = '{} {}'.format(level_str[level], message)
+        message = message.replace('\n', '\\n')
+        message = message.replace('\r', '\\r')
         if self.log_level <= level:
             print(message)
             self.sink.putLog('SeriaMon: {}\n'.format(message), compId = 0, types='i')
