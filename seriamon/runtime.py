@@ -69,3 +69,11 @@ class ScriptRuntime:
         with self._condvar:
             while Util.now() < deadline and Util.thread_alive():
                 Util.thread_wait(self._condvar, Util.remaining_seconds(deadline))
+
+    @staticmethod
+    def now():
+        return Util.now()
+
+    @staticmethod
+    def alive():
+        return Util.thread_alive()
