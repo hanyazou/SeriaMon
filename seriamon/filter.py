@@ -79,7 +79,7 @@ class PortFilter(SeriaMonComponent):
 
     def flush(self):
         with self._condvar:
-            if self._remain == '':
+            if not self._remain:
                 return
             self._handleLine(self._remain, self.remain_compId, self.remain_types, self.remain_ts)
             self._remain = None
@@ -109,7 +109,7 @@ class PortFilter(SeriaMonComponent):
                     since = Util.now()
                     while Util.now() < deadline and Util.thread_alive():
                         Util.thread_wait(self._condvar, min(silence, Util.remaining_seconds(deadline)))
-                        if silence <= Util.now() - since and len(lines) == 0:
+                        if silence <= (Util.now() - since).seconds and len(lines) == 0:
                             return True
                         if 0 < len(lines):
                             since = Util.now()
