@@ -179,10 +179,15 @@ class _Thread(QtCore.QThread):
                         self.proc = await self.conn.create_process(parent.command)
                         self.error = False
                     except Exception as e:
-                        parent.sink.putLog('---- fail to connect to {} -----\n'.
-                                           format(parent.host), parent.compId)
-                        parent.log(parent.LOG_ERROR, e)
-                        self.error = True
+                        known_errors = { ('OSError', 22) }
+                        if (type(e).__name__, e.args[0]) in known_errors:
+                            parent.log(parent.LOG_DEBUG, e)
+                        else:
+                            parent.sink.putLog('---- fail to connect to {} -----\n'.
+                                               format(parent.host), parent.compId)
+                            parent.log(parent.LOG_INFO, f'Exception: {type(e).__name__} {e.args}')
+                            parent.log(parent.LOG_ERROR, e)
+                            self.error = True
                         await asyncio.sleep(1.0)
                         continue
                     parent.sink.putLog('---- connect to {} -----\n'.
