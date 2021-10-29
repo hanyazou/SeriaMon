@@ -37,6 +37,12 @@ class PortFilter(SeriaMonComponent):
     def getSource(self):
         return self._source
 
+    def getStatus(self):
+        return self._source.getStatus()
+
+    def isConnected(self):
+        return self.getStatus() == SeriaMonComponent.STATUS_ACTIVE
+
     def putLog(self, value, compId=None, types=None, timestamp=None):
         if len(value) == 0:
             return
@@ -102,7 +108,10 @@ class PortFilter(SeriaMonComponent):
         lines = []
         with self.hook(lambda line: [ lines.append(line) ], pattern=pattern):
             if command and not self.write(command, timeout=deadline):
-                self.log(self.LOG_ERROR, "failed to write command {}".format(command))
+                if self.isConnected():
+                    self.log(self.LOG_ERROR, "failed to write command {}".format(command))
+                else:
+                    self.log(self.LOG_DEBUG, "port is not active, failed to write command {}".format(command))
                 return False
             with self._condvar:
                 if silence:
