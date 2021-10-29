@@ -220,7 +220,7 @@ class _Thread(QtCore.QThread):
                 except Exception as e:
                     if isinstance(e, ConnectionLost) or isinstance(e, ConnectionAbortedError):
                         parent.log(parent.LOG_DEBUG, e)
-                        self.delay = 5.0
+                        self.delay = 1.0
                     else:
                         traceback.print_exc()
                         parent.log(parent.LOG_ERROR, e)
@@ -256,7 +256,7 @@ class _Thread(QtCore.QThread):
                 except Exception as e:
                     if isinstance(e, ConnectionLost) or isinstance(e, ConnectionAbortedError):
                         parent.log(parent.LOG_DEBUG, e)
-                        self.delay = 5.0
+                        self.delay = 1.0
                     else:
                         traceback.print_exc()
                         parent.log(parent.LOG_ERROR, e)
