@@ -218,7 +218,8 @@ class _Thread(QtCore.QThread):
                     else:
                         await asyncio.sleep(1.0)
                 except Exception as e:
-                    if isinstance(e, ConnectionLost):
+                    if isinstance(e, ConnectionLost) or isinstance(e, ConnectionAbortedError):
+                        parent.log(parent.LOG_DEBUG, e)
                         self.delay = 5.0
                     else:
                         traceback.print_exc()
@@ -253,7 +254,8 @@ class _Thread(QtCore.QThread):
                     parent.sink.putLog(value, parent.compId, self.types)
                     self.error = False
                 except Exception as e:
-                    if isinstance(e, ConnectionLost):
+                    if isinstance(e, ConnectionLost) or isinstance(e, ConnectionAbortedError):
+                        parent.log(parent.LOG_DEBUG, e)
                         self.delay = 5.0
                     else:
                         traceback.print_exc()
