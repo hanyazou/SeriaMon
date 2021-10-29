@@ -1,4 +1,5 @@
 import threading
+from seriamon.component import SeriaMonComponent
 from seriamon.utils import Util
 
 class FilterWrapper:
@@ -50,6 +51,12 @@ class FilterWrapper:
 
 
 class ScriptRuntime:
+    LOG_DEBUG = SeriaMonComponent.LOG_DEBUG
+    LOG_INFO = SeriaMonComponent.LOG_INFO
+    LOG_WARNING = SeriaMonComponent.LOG_WARNING
+    LOG_ERROR = SeriaMonComponent.LOG_ERROR
+    LOG_NONE = SeriaMonComponent.LOG_NONE
+
     Port = FilterWrapper
     deadline = Util.deadline
 
