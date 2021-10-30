@@ -97,7 +97,7 @@ class Logger(QDialog, SeriaMonComponent):
             try:
                 filename = os.path.join(self.foldername, datetime.now().strftime(self.filename))
                 self.log(self.LOG_INFO, 'new log file is {}'.format(filename))
-                newWriter = open(filename, 'w')
+                newWriter = open(filename, 'w', encoding="utf-8")
                 self.writer_filename = filename
             except Exception as e:
                 newWriter = None
