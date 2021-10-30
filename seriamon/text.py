@@ -1,3 +1,4 @@
+from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QTextCursor
 
@@ -28,21 +29,38 @@ class TextViewer(QWidget, SeriaMonComponent):
         self.internalMsgCheckBox.setChecked(False)
 
         self.initPreferences('seriamon.textviewer.{}.'.format(instanceId),
-                             [[ bool,   'autoScroll', True,   self.autoScrollCheckBox ],
-                              [ bool,   'timestamp',  True,   self.timestampCheckBox ],
-                              [ bool,   'compId',     False,  self.compIdCheckBox ],
-                              [ bool,   'internalMsg',False,  self.internalMsgCheckBox ]])
+                             [[ bool,   'autoScroll',    True,   self.autoScrollCheckBox ],
+                              [ bool,   'timestamp',     True,   self.timestampCheckBox ],
+                              [ bool,   'compId',        False,  self.compIdCheckBox ],
+                              [ bool,   'internalMsg',   False,  self.internalMsgCheckBox ],
+                              [ str,    'splitterState', None    ]])
 
-        grid = QGridLayout()
-        grid.addWidget(self.textEdit, 0, 0, 1, 8)
-        grid.addWidget(self.autoScrollCheckBox, 1, 4)
-        grid.addWidget(self.timestampCheckBox, 1, 5)
-        grid.addWidget(self.compIdCheckBox, 1, 6)
-        grid.addWidget(self.internalMsgCheckBox, 1, 7)
-        grid.setRowStretch(0, 1)
-        grid.setColumnStretch(0, 1)
+        self.splitter = QSplitter(QtCore.Qt.Horizontal)
+        self.splitter.addWidget(self.textEdit)
 
-        self.setLayout(grid)
+        layout = QVBoxLayout()
+        layout.addWidget(self.autoScrollCheckBox)
+        layout.addWidget(self.timestampCheckBox)
+        layout.addWidget(self.compIdCheckBox)
+        layout.addWidget(self.internalMsgCheckBox)
+        panel = QWidget()
+        panel.setLayout(layout)
+        scrollarea = QScrollArea()
+        scrollarea.setWidget(panel)
+        self.splitter.addWidget(scrollarea)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.splitter)
+        self.setLayout(layout)
+
+    def reflectToUi(self, items=None):
+        super().reflectToUi(items)
+        if self.splitterState:
+            self.splitter.restoreState(bytearray.fromhex(self.splitterState))
+
+    def reflectFromUi(self, items=None):
+        super().reflectFromUi(items)
+        self.splitterState = ''.join(['{:02x}'.format(data[0]) for data in self.splitter.saveState()])
 
     def putLog(self, value, compId=None, types=None, timestamp=None):
         if not self.internalMsgCheckBox.isChecked() and 'i' in types:
