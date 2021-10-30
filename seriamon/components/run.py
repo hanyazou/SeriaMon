@@ -57,6 +57,7 @@ class Component(QWidget, SeriaMonComponent):
 
         self.setLayout(grid)
         self.thread = None
+        self.background_thread = None
 
     def setupWidget(self):
         return self
@@ -80,10 +81,15 @@ class Component(QWidget, SeriaMonComponent):
             self.thread.wait()
             self.log(self.LOG_DEBUG, 'Stop script...done')
         self._thead = None
+        if self._isReloadingNeeded():
+            self._scriptChanged()
         self.running = False
 
     def shutdown(self):
         self.stop()
+        if self.background_thread:
+            self.background_thread.stop()
+            self.background_thread.wait()
 
     def updatePreferences(self):
         super().updatePreferences()
@@ -124,11 +130,32 @@ class Component(QWidget, SeriaMonComponent):
         self.run = not self.run
         self.updatePreferences()
 
+    def _isReloadingNeeded(self) -> bool:
+        '''
+        loading is needed if
+          there is no moudle loaded yet
+          or the file is updated
+        '''
+        return not self.module or self.module_timestamp != os.path.getmtime(self.module_file)
+
+    def _loadModule(self, name):
+        module_file = os.path.join(os.path.dirname(__file__), '..', 'scripts', name + '.py')
+        self.log(self.LOG_INFO, f'load {module_file}')
+        self.module = importlib.import_module('seriamon.scripts.' + name)
+        importlib.reload(self.module)
+        self.module_file = module_file
+        self.module_timestamp = os.path.getmtime(self.module_file)
+        if not self.background_thread:
+            self.background_thread = _ThreadBackground(self)
+            self.background_thread.start()
+
     def _scriptChanged(self):
         current = self.scriptComboBox.currentText()
+        if not current:
+            return
         runnable = False
         try:
-            self.module = importlib.import_module('seriamon.scripts.' + current)
+            self._loadModule(current)
             argspec = inspect.getfullargspec(self.module.run)
             self.argspec = argspec
             self.log(self.LOG_DEBUG, 'script: {}.run{}'.format(current, argspec))
@@ -254,3 +281,25 @@ class _Thread(QtCore.QThread):
         parent.run = False
         parent.running = False
         parent.updatePreferences()
+
+
+class _ThreadBackground(QtCore.QThread):
+    def __init__(self, parent: Component):
+        super().__init__()
+        self.parent = parent
+        self.thread_context = None
+
+    def stop(self):
+        Util.thread_kill(self.thread_context)
+
+    def run(self):
+        self.thread_context = Util.thread_context(f'{self.parent.getComponentName()}')
+        parent: Component = self.parent
+
+        try:
+            while Util.thread_alive():
+                if not parent.running and parent._isReloadingNeeded():
+                    parent._scriptChanged()
+                self.msleep(1000)
+        except Util.ThreadKilledException as e:
+            pass
