@@ -131,7 +131,7 @@ class Component(QWidget, SeriaMonComponent):
             self.module = importlib.import_module('seriamon.scripts.' + current)
             argspec = inspect.getfullargspec(self.module.run)
             self.argspec = argspec
-            self.log(self.LOG_INFO, 'script: {}.run{}'.format(current, argspec))
+            self.log(self.LOG_DEBUG, 'script: {}.run{}'.format(current, argspec))
             if argspec.defaults:
                 offs = len(argspec.args) - len(argspec.defaults)
             else:
@@ -151,7 +151,7 @@ class Component(QWidget, SeriaMonComponent):
                 self.annotations[i] = None
                 if argname in argspec.annotations.keys():
                     self.annotations[i] = argspec.annotations[argname]
-                    self.log(self.LOG_INFO, 'arg {} is annotated with {}'.format(argname, self.annotations[i]))
+                    self.log(self.LOG_DEBUG, 'arg {} is annotated with {}'.format(argname, self.annotations[i]))
                 if self.annotations[i] == ScriptRuntime.Port:
                     ports = [ filter for filter in FilterManager.getFilters().keys() ]
                     self.argComboBoxies[i].setEditable(False)
@@ -164,15 +164,15 @@ class Component(QWidget, SeriaMonComponent):
                     if self.argComboBoxies[i] is not None and self.argComboBoxies[i] != '':
                         continue
                     value = argspec.defaults[i - offs]
-                    self.log(self.LOG_INFO, 'defaults[{}] = {}'.format(i - offs, value))
+                    self.log(self.LOG_DEBUG, 'defaults[{}] = {}'.format(i - offs, value))
                     if not isinstance(value, str):
                         value = str(value)
                     self.argComboBoxies[i].setCurrentText(value)
             runnable = True
         except Exception as e:
             if current is not None and current != '':
-                traceback.print_exc()
-                self.log(self.LOG_ERROR, e)
+                for line in traceback.format_exc().splitlines():
+                    self.log(self.LOG_ERROR, line)
         if not runnable:
             for i in range(len(self.argLabels)):
                 self.argLabels[i].setVisible(False)
@@ -245,8 +245,8 @@ class _Thread(QtCore.QThread):
         except Util.ThreadKilledException as e:
             parent.setStatus(parent.STATUS_DEACTIVE)
         except Exception as e:
-            traceback.print_exc()
-            parent.log(parent.LOG_ERROR, e)
+            for line in traceback.format_exc().splitlines():
+                parent.log(parent.LOG_ERROR, line)
             parent.setStatus(parent.STATUS_ERROR)
         else:
             parent.setStatus(parent.STATUS_DEACTIVE)

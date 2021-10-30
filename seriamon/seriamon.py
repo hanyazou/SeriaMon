@@ -256,8 +256,8 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                 if isinstance(comp, SeriaMonComponent):
                     comp.savePreferences(preferences)
             except Exception as e:
-                traceback.print_exc()
-                self.log(self.LOG_ERROR, e)
+                for line in traceback.format_exc().splitlines():
+                    self.log(self.LOG_ERROR, line)
         with open(self.prefFilename, 'w') as writer:
             for key, value in preferences.items():
                 writer.write('{}: {}\n'.format(key, value))
@@ -273,20 +273,20 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                     pos = line.index(':')
                     preferences[line[0:pos]] = line[pos+2:]
                 except Exception as e:
-                    traceback.print_exc()
-                    self.log(self.LOG_ERROR, e)
+                    for line in traceback.format_exc().splitlines():
+                        self.log(self.LOG_ERROR, line)
                     self.log(self.LOG_ERROR, line)
             reader.close()
         except Exception as e:
-            traceback.print_exc()
-            self.log(self.LOG_ERROR, e)
+            for line in traceback.format_exc().splitlines():
+                self.log(self.LOG_ERROR, line)
         for comp in self.components:
             try:
                 if isinstance(comp, SeriaMonComponent):
                     comp.loadPreferences(preferences)
             except Exception as e:
-                traceback.print_exc()
-                self.log(self.LOG_ERROR, e)
+                for line in traceback.format_exc().splitlines():
+                    self.log(self.LOG_ERROR, line)
 
     def _handler(self, msg):
         while not self.queue.empty():

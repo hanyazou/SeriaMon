@@ -154,7 +154,8 @@ class PortFilter(SeriaMonComponent):
                 if hook.pattern is None or hook.pattern.match(line):
                     hook.callback(line)
             except Exception as e:
-                traceback.print_exc()
+                for line in traceback.format_exc().splitlines():
+                    self.log(self.LOG_ERROR, line)
                 self.log(self.LOG_ERROR, "  hook.pattern={}, line={}".format(hook.pattern, line))
         self._condvar.notifyAll()
 

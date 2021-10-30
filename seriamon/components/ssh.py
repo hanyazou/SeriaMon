@@ -185,8 +185,7 @@ class _Thread(QtCore.QThread):
                         else:
                             parent.sink.putLog('---- fail to connect to {} -----\n'.
                                                format(parent.host), parent.compId)
-                            parent.log(parent.LOG_INFO, f'Exception: {type(e).__name__} {e.args}')
-                            parent.log(parent.LOG_ERROR, e)
+                            parent.log(parent.LOG_ERROR, f'Exception: {type(e).__name__} {e.args}')
                             self.error = True
                         await asyncio.sleep(1.0)
                         continue
@@ -222,8 +221,8 @@ class _Thread(QtCore.QThread):
                         parent.log(parent.LOG_DEBUG, e)
                         self.delay = 1.0
                     else:
-                        traceback.print_exc()
-                        parent.log(parent.LOG_ERROR, e)
+                        for line in traceback.format_exc().splitlines():
+                            parent.log(parent.LOG_ERROR, line)
                     self.error = True
                     await asyncio.sleep(1.0)
                     continue
@@ -258,8 +257,8 @@ class _Thread(QtCore.QThread):
                         parent.log(parent.LOG_DEBUG, e)
                         self.delay = 1.0
                     else:
-                        traceback.print_exc()
-                        parent.log(parent.LOG_ERROR, e)
+                        for line in traceback.format_exc().splitlines():
+                            parent.log(parent.LOG_ERROR, line)
                     self.error = True
                     await asyncio.sleep(1.0)
                     continue
