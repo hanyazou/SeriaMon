@@ -72,14 +72,16 @@ class TextViewer(QWidget, SeriaMonComponent):
         if self.compIdCheckBox.isChecked():
             cursor.insertText('{:02} '.format(compId))
         cursor.insertText('{}\n'.format(str(value).rstrip('\n\r')))
+        scrollbar = self.textEdit.verticalScrollBar()
+        scrollpos = scrollbar.maximum() - scrollbar.value()
         while Preferences.getInstance().scroll_buffer < self.textEdit.document().blockCount() - 1:
             cursor.movePosition(QTextCursor.Start)
             cursor.select(QTextCursor.BlockUnderCursor)
             cursor.removeSelectedText()
             cursor.deleteChar()
         if self.autoScrollCheckBox.isChecked():
-            scrollbar = self.textEdit.verticalScrollBar()
-            scrollbar.setValue(scrollbar.maximum() - 1)
+            scrollpos = -1
+        scrollbar.setValue(scrollbar.maximum() - scrollpos)
 
     def clearLog(self):
         self.textEdit.clear()
