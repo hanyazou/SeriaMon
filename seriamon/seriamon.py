@@ -40,15 +40,18 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
            create components
         """
-        self.components = [ self ]
-        id = 1
+        self.components = []
+        id = 0
+
+        # load global preferences at first and load all preferences later again
         self.prefencesDialog = PreferencesDialog(compId=id, sink=self)
         self.components.append(self.prefencesDialog)
         id += 1
-
-        # load global preferences at first and load all preferences later again
         self._loadPreferences()
         self.log_level = Preferences.getInstance().default_log_level
+
+        self.components.append(self)
+        id += 1
 
         self.plotter = Plotter(compId=id, sink=self)
         self.components.append(self.plotter)
