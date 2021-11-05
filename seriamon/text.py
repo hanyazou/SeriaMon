@@ -70,7 +70,10 @@ class TextViewer(QWidget, SeriaMonComponent):
         if self.timestampCheckBox.isChecked():
             cursor.insertText("{} ".format(timestamp.isoformat(sep=' ', timespec='milliseconds')))
         if self.compIdCheckBox.isChecked():
-            cursor.insertText('{:02} '.format(compId))
+            if isinstance(compId, int):
+                cursor.insertText('{:02} '.format(compId))
+            else:
+                cursor.insertText('{:2} '.format(compId))
         cursor.insertText('{}\n'.format(str(value).rstrip('\n\r')))
         scrollbar = self.textEdit.verticalScrollBar()
         scrollpos = scrollbar.maximum() - scrollbar.value()

@@ -54,7 +54,10 @@ class Logger(QDialog, SeriaMonComponent):
         if self.writer:
             if isinstance(value, str):
                 value = value.rstrip('\n\r')
-            self.writer.write('{} {:02} {} {}\n'.format(timestamp, compId, types, value))
+            if isinstance(compId, int):
+                self.writer.write('{} {:02} {} {}\n'.format(timestamp, compId, types, value))
+            else:
+                self.writer.write('{} {:2} {} {}\n'.format(timestamp, compId, types, value))
             self.writer.flush()
 
     def setupDialog(self):
