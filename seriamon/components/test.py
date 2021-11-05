@@ -57,11 +57,11 @@ class Component(UartReader):
                     self.testInputEnd = datetime.now().timestamp() * 1000
                     self.testInputCount -= n
                     self.inputTotal += n
-                    self.sink.putLog("{:,} bytes recieved, {:,} bytes {:.1f}% remain".format(
+                    self.sink.putLog("{:,} bytes recieved, {:,} bytes {:.1f}% remain\n".format(
                         n, self.testInputCount, self.testInputCount * 100 / self.testInputTotal))
                     num_of_blocks = int(n / self.BLOCK_SIZE)
                     if num_of_blocks * self.BLOCK_SIZE != n:
-                        self.sink.putLog("WARNING {:,} bytes is {} blocks + {} bytes".format(
+                        self.sink.putLog("WARNING {:,} bytes is {} blocks + {} bytes\n".format(
                             n, num_of_blocks, n - num_of_blocks * self.BLOCK_SIZE))
                     if not self.testInputNoCRC:
                         self.testInputCRC = zlib.crc32(buf, self.testInputCRC) & 0xffffffff
@@ -74,17 +74,17 @@ class Component(UartReader):
                                 self.errorCount += 1
                                 if self.errorCount == 1:
                                     self.sink.putLog(
-                                        "ERROR: block {:08x} is broken ({:08x}, {:08x})".format(
+                                        "ERROR: block {:08x} is broken ({:08x}, {:08x})\n".format(
                                             i, seqnum0, seqnum1))
                                     for j in range(int(self.BLOCK_SIZE / 16)):
                                         offs = i * self.BLOCK_SIZE + j * 16
-                                        self.sink.putLog("    {:04x}: {}".format(
+                                        self.sink.putLog("    {:04x}: {}\n".format(
                                             offs, self._bytesToHexString(buf[offs:offs + 16])))
                                 break
                 if self.testInputCount == 0:
                     crc = self._readUint32(port)
                     self.sink.putLog(
-                        "{:,} bytes recieved in {:7.3f} sec, CRC: {:08x}{}{:08x}".format(
+                        "{:,} bytes recieved in {:7.3f} sec, CRC: {:08x}{}{:08x}\n".format(
                             self.inputTotal,
                             (self.testInputEnd - self.testInputStart) / 1000.0,
                             crc,
@@ -104,13 +104,13 @@ class Component(UartReader):
                     self.testOutputCRC = zlib.crc32(buf, self.testOutputCRC) & 0xffffffff
                 self.testOutputCount -= n
                 self.outputTotal += n
-                self.sink.putLog("{:,} bytes sent, {:,} bytes {:.1f}% remain".format(
+                self.sink.putLog("{:,} bytes sent, {:,} bytes {:.1f}% remain\n".format(
                     n, self.testOutputCount, self.testOutputCount * 100 / self.testOutputTotal))
                 if self.testOutputCount == 0:
                     self.testOutputEnd = datetime.now().timestamp() * 1000
                     self._writeUint32(port, self.testOutputCRC)
                     self.sink.putLog(
-                        "{:,} bytes sent in {:7.3f} sec, CRC: {:08x}".format(
+                        "{:,} bytes sent in {:7.3f} sec, CRC: {:08x}\n".format(
                             self.outputTotal,
                             (self.testOutputEnd - self.testOutputStart) / 1000.0,
                             self.testOutputCRC))
@@ -145,7 +145,7 @@ class Component(UartReader):
             self.testInputTotal = self.testInputCount
             self.testInputStart = datetime.now().timestamp() * 1000
             self.testInputEnd = 0
-            self.sink.putLog("testInputCount={} CRC={:08x}".format(
+            self.sink.putLog("testInputCount={} CRC={:08x}\n".format(
                 self.testInputCount, self.testInputCRC))
 
         elif command == "\\TSC" or command == "\\TS_":
@@ -163,7 +163,7 @@ class Component(UartReader):
             self.testOutputTotal = self.testOutputCount
             self.testOutputStart = datetime.now().timestamp() * 1000
             self.testOutputEnd = 0
-            self.sink.putLog("testOutputCount={} CRC={:08x}".format(
+            self.sink.putLog("testOutputCount={} CRC={:08x}\n".format(
                 self.testOutputCount, self.testOutputCRC))
 
         elif command == "\\TGS":
@@ -171,7 +171,7 @@ class Component(UartReader):
                command: command: test get status
             """
             self.sink.putLog(
-                "Test Get Status: {} {:08x} {} {:08x}".format(
+                "Test Get Status: {} {:08x} {} {:08x}\n".format(
                     self.inputTotal, self.testInputCRC,
                     self.outputTotal, self.testOutputCRC))
             self._writeUint32(port, self.inputTotal)
@@ -184,7 +184,7 @@ class Component(UartReader):
             """
                command: test reset status
             """
-            self.sink.putLog("Test Reset Status")
+            self.sink.putLog("Test Reset Status\n")
             self.testInputCount = 0
             self.testInputTotal = 0
             self.testInputCRC = 0
@@ -198,24 +198,24 @@ class Component(UartReader):
                command: message from accessory
             """
             n = self._readUint32(port)
-            self.sink.putLog("Message {} bytes from accessory".format(n))
+            self.sink.putLog("Message {} bytes from accessory\n".format(n))
             buf = self._read(port, n)
-            self.sink.putLog("    {}".format(self._bytesToHexString(buf)))
+            self.sink.putLog("    {}\n".format(self._bytesToHexString(buf)))
         elif command == "\\ECH":
             """
                command: echo 
             """
             n = self._readUint32(port)
-            self.sink.putLog("Echo {} bytes to accessory".format(n))
+            self.sink.putLog("Echo {} bytes to accessory\n".format(n))
             buf = self._read(port, n)
-            self.sink.putLog("    {}".format(self._bytesToHexString(buf)))
+            self.sink.putLog("    {}\n".format(self._bytesToHexString(buf)))
             self._write(port, buf)
         else:
-            self.sink.putLog("Unknown command from accessory")
+            self.sink.putLog("Unknown command from accessory\n")
             if 0 < port.in_waiting:
                 buf += self._read(port, port.in_waiting)
-            self.sink.putLog("    buffer: {}".format(self._bytesToHexString(buf)))
-            self.sink.putLog("    buffer: {}".format(buf.decode()))
+            self.sink.putLog("    buffer: {}\n".format(self._bytesToHexString(buf)))
+            self.sink.putLog("    buffer: {}\n".format(buf.decode()))
 
     def _bytesToHexString(self, buf):
         return ''.join(["%02x " % ord(chr(x)) for x in buf]).strip()
