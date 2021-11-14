@@ -115,6 +115,7 @@ class SeriaMonComponent:
 
     def updatePreferences(self):
         self.log(self.LOG_DEBUG, 'updatePreferences: {}'.format(self))
+        self.log_level = Preferences.getInstance().default_log_level
         self.reflectToUi()
 
     def reflectToUi(self, items=None):

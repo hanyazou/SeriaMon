@@ -7,11 +7,12 @@ from seriamon.preferences import Preferences
 from seriamon.component import SeriaMonComponent
 
 class PreferencesDialog(QDialog, SeriaMonComponent, object):
-    def __init__(self, compId, sink, instanceId=0):
+    def __init__(self, compId, sink, instanceId=0, updateAllComponentPreferences=None):
         super().__init__(compId=compId, sink=sink, instanceId=instanceId)
 
         self.setWindowTitle('Preferences')
         self.prefs = Preferences.getInstance()
+        self.updateAllComponentPreferences = updateAllComponentPreferences
 
         self.scrollBufferTextEdit = QLineEdit()
         width = self.scrollBufferTextEdit.fontMetrics().boundingRect('______').width()
@@ -61,6 +62,7 @@ class PreferencesDialog(QDialog, SeriaMonComponent, object):
 
     def _onOK(self):
         self.reflectFromUi()
+        self.updateAllComponentPreferences()
         self.close()
 
     def _onCancel(self):

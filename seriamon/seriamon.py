@@ -44,7 +44,8 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         id = 0
 
         # load global preferences at first and load all preferences later again
-        self.prefencesDialog = PreferencesDialog(compId=id, sink=self)
+        self.prefencesDialog = PreferencesDialog(compId=id, sink=self,
+                                                 updateAllComponentPreferences = lambda: self.updateAllComponentPreferences())
         self.components.append(self.prefencesDialog)
         id += 1
         self._loadPreferences()
@@ -119,6 +120,9 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                               [ str,    'splitterState',None    ]])
 
         self._loadPreferences()
+
+        # ensure global preferences will be reflected to each components
+        self.updateAllComponentPreferences()
 
         """
            tabbed setup widgets
@@ -284,6 +288,15 @@ class mainWindow(QMainWindow, SeriaMonComponent):
             try:
                 if isinstance(comp, SeriaMonComponent):
                     comp.loadPreferences(preferences)
+            except Exception as e:
+                for line in traceback.format_exc().splitlines():
+                    self.log(self.LOG_ERROR, line)
+
+    def updateAllComponentPreferences(self):
+        for comp in self.components:
+            try:
+                if isinstance(comp, SeriaMonComponent):
+                    comp.updatePreferences()
             except Exception as e:
                 for line in traceback.format_exc().splitlines():
                     self.log(self.LOG_ERROR, line)
