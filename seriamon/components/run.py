@@ -198,8 +198,11 @@ class Component(QWidget, SeriaMonComponent):
             runnable = True
         except Exception as e:
             if current is not None and current != '':
-                for line in traceback.format_exc().splitlines():
-                    self.log(self.LOG_ERROR, line)
+                if isinstance(e, PermissionError):
+                    self.log(self.LOG_ERROR, e)
+                else:
+                    for line in traceback.format_exc().splitlines():
+                        self.log(self.LOG_ERROR, line)
         if not runnable:
             for i in range(len(self.argLabels)):
                 self.argLabels[i].setVisible(False)
