@@ -47,6 +47,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                                                  updateAllComponentPreferences = lambda: self.compmgr.updatePreferences())
         self.compmgr.loadPreferences(self.prefFilename)
         self.log_level = Preferences.getInstance().default_log_level
+        self.compmgr.updatePreferences()
 
         self.plotter = Plotter(sink=self)
         self.textViewer = TextViewer(sink=self)

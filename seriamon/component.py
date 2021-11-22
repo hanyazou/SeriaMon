@@ -135,6 +135,8 @@ class SeriaMonComponent:
     def updatePreferences(self):
         self.log(self.LOG_DEBUG, 'updatePreferences: {}'.format(self))
         self.log_level = Preferences.getInstance().default_log_level
+        if not self.preferencePoperties:
+            return
         self.reflectToUi()
 
     def reflectToUi(self, items=None):
@@ -228,6 +230,7 @@ class ComponentManager(SeriaMonComponent):
         self._lock = threading.Lock()
         self._components = []
         super().__init__(sink, instanceId)
+        self.register(self)
 
     def register(self, comp: SeriaMonComponent, name: str = None):
         if not name:
@@ -253,6 +256,7 @@ class ComponentManager(SeriaMonComponent):
         preferences = {}
         for comp in self._components:
             if comp is self:
+                super().savePreferences(preferences)
                 continue
             try:
                 if isinstance(comp, SeriaMonComponent):
@@ -284,6 +288,7 @@ class ComponentManager(SeriaMonComponent):
                 self.log(self.LOG_ERROR, line)
         for comp in self._components:
             if comp is self:
+                super().loadPreferences(preferences)
                 continue
             try:
                 if isinstance(comp, SeriaMonComponent):
@@ -295,6 +300,7 @@ class ComponentManager(SeriaMonComponent):
     def updatePreferences(self):
         for comp in self._components:
             if comp is self:
+                super().updatePreferences()
                 continue
             try:
                 if isinstance(comp, SeriaMonComponent):
