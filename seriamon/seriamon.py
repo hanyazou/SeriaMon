@@ -4,7 +4,6 @@ import queue
 import importlib
 import inspect
 from datetime import datetime
-import traceback
 
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
@@ -23,7 +22,10 @@ class mainWindow(QMainWindow, SeriaMonComponent):
     serialPortSignal = QtCore.pyqtSignal(str)
 
     def __init__(self):
-        super().__init__(compId=0, sink=self)
+        self.compmgr = ComponentManager()
+        SeriaMonComponent.setManager(self.compmgr)
+        super().__init__(sink=self)
+        self.compmgr.setSink(self)
 
         self.setComponentName(None)
         Util.set_logger(self)
@@ -40,32 +42,16 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
            create components
         """
-        self.components = []
-        id = 0
-
         # load global preferences at first and load all preferences later again
-        self.prefencesDialog = PreferencesDialog(compId=id, sink=self,
-                                                 updateAllComponentPreferences = lambda: self.updateAllComponentPreferences())
-        self.components.append(self.prefencesDialog)
-        id += 1
-        self._loadPreferences()
+        self.prefencesDialog = PreferencesDialog(sink=self,
+                                                 updateAllComponentPreferences = lambda: self.compmgr.updatePreferences())
+        self.compmgr.loadPreferences(self.prefFilename)
         self.log_level = Preferences.getInstance().default_log_level
 
-        self.components.append(self)
-        id += 1
-
-        self.plotter = Plotter(compId=id, sink=self)
-        self.components.append(self.plotter)
-        id += 1
-        self.textViewer = TextViewer(compId=id, sink=self)
-        self.components.append(self.textViewer)
-        id += 1
-        self.logger = Logger(compId=id, sink=self)
-        self.components.append(self.logger)
-        id += 1
-        self.logImporter = LogImporter(compId=id, sink=self)
-        self.components.append(self.logImporter)
-        id += 1
+        self.plotter = Plotter(sink=self)
+        self.textViewer = TextViewer(sink=self)
+        self.logger = Logger(sink=self)
+        self.logImporter = LogImporter(sink=self)
 
         self.splitter = QSplitter(QtCore.Qt.Vertical)
         self.splitter.addWidget(self.plotter)
@@ -88,27 +74,21 @@ class mainWindow(QMainWindow, SeriaMonComponent):
             module = importlib.import_module('.components.' + module_name, 'seriamon')
             if not 'Component' in [ name for name, obj in inspect.getmembers(module, inspect.isclass) ]:
                 continue
-            filter = PortFilter(compId=id, sink=self)
-            id += 1
-            component = module.Component(compId=id, sink=filter)
-            id += 1
+            filter = PortFilter(sink=self)
+            component = module.Component(sink=filter)
             isport = isinstance(component, SeriaMonPort)
             self.log(self.LOG_DEBUG, '    add compoment {}{} from {}'.format(component.getComponentName(), ' (port)' if isport else '', module_name))
-            self.components.append(component)
             if isport:
                 filter.setSource(component)
             if 1 < component.component_default_num_of_instances:
                 component.setComponentName(component.getComponentName() + ' 0')
             for i in range(1, component.component_default_num_of_instances):
                 if isport:
-                    sink = PortFilter(compId=id, sink=self)
-                    id += 1
+                    sink = PortFilter(sink=self)
                 else:
                     sink = self
                 self.log(self.LOG_DEBUG, '    add compoment {}{} from {}'.format(component.getComponentName(), ' (port)' if isport else '', module_name))
-                component = module.Component(compId=id, sink=sink, instanceId=i)
-                id += 1
-                self.components.append(component)
+                component = module.Component(sink=sink, instanceId=i)
                 if sink is not self:
                     sink.setSource(component)
 
@@ -119,16 +99,16 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                               [ int,    'height',       None    ],
                               [ str,    'splitterState',None    ]])
 
-        self._loadPreferences()
+        self.compmgr.loadPreferences(self.prefFilename)
 
         # ensure global preferences will be reflected to each components
-        self.updateAllComponentPreferences()
+        self.compmgr.updatePreferences()
 
         """
            tabbed setup widgets
         """
         self.tabs = QTabWidget()
-        for comp in self.components:
+        for comp in self.compmgr.getComponents():
             method = getattr(comp, 'setupWidget', None)
             if not method:
                 continue
@@ -172,7 +152,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         """
         self.serialPortSignal.connect(self._handler)
         self.show()
-        self.initialized()
+        self.compmgr.callAllComponentsMethod('initialized')
 
     def reflectToUi(self, items=None):
         super().reflectToUi(items)
@@ -215,91 +195,15 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.serialPortSignal.emit('s')
 
     def stopLog(self):
-        for comp in self.components:
-            if comp is self:
-                continue
-            method = getattr(comp, 'stopLog', None)
-            if method:
-                method()
-
-    def initialized(self):
-        for comp in self.components:
-            if comp is self:
-                continue
-            method = getattr(comp, 'initialized', None)
-            if method:
-                method()
-        super().initialized()
-
-    def shutdown(self):
-        for comp in self.components:
-            if comp is self:
-                continue
-            method = getattr(comp, 'shutdown', None)
-            if method:
-                method()
-        self.stopped = True
+        self.compmgr.callAllComponentsMethod('stopLog', excludes=self)
 
     def clearLog(self):
-        for comp in self.components:
-            if comp is self:
-                continue
-            method = getattr(comp, 'clearLog', None)
-            if method:
-                method()
+        self.compmgr.callAllComponentsMethod('clearLog', excludes=self)
 
     def closeEvent(self, event):
-        self._savePreferences()
-        self.shutdown()
+        self.compmgr.savePreferences(self.prefFilename)
+        self.compmgr.callAllComponentsMethod('shutdown')
         QMainWindow.closeEvent(self, event)
-
-    def _savePreferences(self):
-        preferences = {}
-        for comp in self.components:
-            try:
-                if isinstance(comp, SeriaMonComponent):
-                    comp.savePreferences(preferences)
-            except Exception as e:
-                for line in traceback.format_exc().splitlines():
-                    self.log(self.LOG_ERROR, line)
-        with open(self.prefFilename, 'w') as writer:
-            for key, value in preferences.items():
-                writer.write('{}: {}\n'.format(key, value))
-            writer.close()
-
-    def _loadPreferences(self):
-        preferences = {}
-        try:
-            reader = open(self.prefFilename, 'r')
-            for line in reader:
-                line = line.rstrip('\n\r')
-                try:
-                    pos = line.index(':')
-                    preferences[line[0:pos]] = line[pos+2:]
-                except Exception as e:
-                    for line in traceback.format_exc().splitlines():
-                        self.log(self.LOG_ERROR, line)
-                    self.log(self.LOG_ERROR, line)
-            reader.close()
-        except Exception as e:
-            for line in traceback.format_exc().splitlines():
-                self.log(self.LOG_ERROR, line)
-        for comp in self.components:
-            try:
-                if isinstance(comp, SeriaMonComponent):
-                    comp.loadPreferences(preferences)
-            except Exception as e:
-                for line in traceback.format_exc().splitlines():
-                    self.log(self.LOG_ERROR, line)
-
-    def updateAllComponentPreferences(self):
-        for comp in self.components:
-            try:
-                if isinstance(comp, SeriaMonComponent):
-                    comp.updatePreferences()
-            except Exception as e:
-                for line in traceback.format_exc().splitlines():
-                    self.log(self.LOG_ERROR, line)
 
     def _handler(self, msg):
         while not self.queue.empty():

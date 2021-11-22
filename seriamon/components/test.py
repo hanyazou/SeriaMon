@@ -9,11 +9,11 @@ class Component(UartReader):
     component_default_name = 'Test'
     component_default_num_of_instances = 1
 
-    def __init__(self, compId, sink, instanceId=0):
+    def __init__(self, sink, instanceId=0):
         self.BUFFER_SIZE = 1024*1024
         self.BLOCK_SIZE = 512
 
-        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+        super().__init__(sink=sink, instanceId=instanceId)
         self.generation = 0
         self.send_data = bytes(self.BUFFER_SIZE)
 

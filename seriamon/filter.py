@@ -23,8 +23,8 @@ class FilterHook:
 class PortFilter(SeriaMonComponent):
     _condvar = threading.Condition()
 
-    def __init__(self, compId, sink, instanceId=0):
-        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+    def __init__(self, sink, instanceId=0):
+        super().__init__(sink=sink, instanceId=instanceId)
         self._source = None
         self._remain = None
         self._hooks = []

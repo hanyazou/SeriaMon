@@ -7,8 +7,8 @@ from seriamon.preferences import Preferences
 from seriamon.component import SeriaMonComponent
 
 class PreferencesDialog(QDialog, SeriaMonComponent, object):
-    def __init__(self, compId, sink, instanceId=0, updateAllComponentPreferences=None):
-        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+    def __init__(self, sink, instanceId=0, updateAllComponentPreferences=None):
+        super().__init__(sink=sink, instanceId=instanceId)
 
         self.setWindowTitle('Preferences')
         self.prefs = Preferences.getInstance()

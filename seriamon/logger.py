@@ -7,8 +7,8 @@ from PyQt5 import QtCore
 from .component import SeriaMonComponent
 
 class Logger(QDialog, SeriaMonComponent):
-    def __init__(self, compId, sink, instanceId=0):
-        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+    def __init__(self, sink, instanceId=0):
+        super().__init__(sink=sink, instanceId=instanceId)
 
         self.writer = None
 
@@ -113,8 +113,8 @@ class Logger(QDialog, SeriaMonComponent):
 
 
 class LogImporter(QDialog, SeriaMonComponent):
-    def __init__(self, compId, sink, instanceId=0):
-        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+    def __init__(self, sink, instanceId=0):
+        super().__init__(sink=sink, instanceId=instanceId)
 
         self.sink = sink
 

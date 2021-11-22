@@ -6,8 +6,8 @@ from seriamon.component import SeriaMonComponent
 from seriamon.preferences import Preferences
 
 class TextViewer(QWidget, SeriaMonComponent):
-    def __init__(self, compId, sink, instanceId=0):
-        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+    def __init__(self, sink, instanceId=0):
+        super().__init__(sink=sink, instanceId=instanceId)
 
         self.textEdit = QPlainTextEdit()
         self.textEdit.setReadOnly(True)

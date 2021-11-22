@@ -16,8 +16,8 @@ class Component(QWidget, SeriaMonComponent):
     component_default_num_of_instances = 1
     MAXARGS = 4
 
-    def __init__(self, compId, sink, instanceId=0):
-        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+    def __init__(self, sink, instanceId=0):
+        super().__init__(sink=sink, instanceId=instanceId)
 
         self.run = False
         self.running = False

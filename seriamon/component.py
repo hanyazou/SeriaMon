@@ -1,3 +1,5 @@
+import threading
+import traceback
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 
@@ -17,13 +19,21 @@ class SeriaMonComponent:
     LOG_ERROR = 4
     LOG_NONE = 99
 
+    _manager = None
+    _compId = 0
+
     component_default_name = None
     component_default_num_of_instances = 1
 
     updated = QtCore.pyqtSignal(object)
 
-    def __init__(self, compId, sink=None, instanceId=0):
-        self.compId = compId
+    @staticmethod
+    def setManager(manager):
+        SeriaMonComponent._manager = manager
+
+    def __init__(self, sink=None, instanceId=0):
+        self.compId = SeriaMonComponent._compId
+        SeriaMonComponent._compId += 1
         self.instanceId = instanceId
         self.log_level = Preferences.getInstance().default_log_level
         self.sink = sink
@@ -39,6 +49,8 @@ class SeriaMonComponent:
             self.setComponentName('{} {}'.format(name, instanceId))
         else:
             self.setComponentName(name)
+        if SeriaMonComponent._manager:
+            SeriaMonComponent._manager.register(self)
 
     def initialized(self):
         self.initialized = True
@@ -61,6 +73,9 @@ class SeriaMonComponent:
 
     def getComponentName(self):
         return self._component_name
+
+    def setSink(self, sink):
+        self.sink = sink
 
     def importLog(self, log):
         for value, compId, types, timestamp in log:
@@ -189,10 +204,93 @@ class SeriaMonComponent:
         message = message.replace('\r', '\\r')
         if self.log_level <= level:
             print(message)
-            self.sink.putLog('SeriaMon: {}\n'.format(message), compId = 0, types='i')
+            if self.sink:
+                self.sink.putLog('SeriaMon: {}\n'.format(message), compId = 0, types='i')
 
 
 class SeriaMonPort(SeriaMonComponent):
 
-    def __init__(self, compId, sink, instanceId=0):
-        super().__init__(compId=compId, sink=sink, instanceId=instanceId)
+    def __init__(self, sink, instanceId=0):
+        super().__init__(sink=sink, instanceId=instanceId)
+
+
+class ComponentManager(SeriaMonComponent):
+
+    def __init__(self, sink=None, instanceId=0):
+        self._lock = threading.Lock()
+        self._components = []
+        super().__init__(sink, instanceId)
+
+    def register(self, comp: SeriaMonComponent, name: str = None):
+        if not name:
+            name = comp.getComponentName()
+        self.log(self.LOG_DEBUG, f'Register component {comp.compId} {name}')
+        with self._lock:
+            self._components.append(comp)
+
+    def getComponents(self):
+        return self._components
+
+    def callAllComponentsMethod(self, method_name: str, excludes = None):
+        if not isinstance(excludes, SeriaMonComponent):
+            excludes = [ excludes ]
+        for comp in self._components:
+            if comp is self or comp in excludes:
+                continue
+            method = getattr(comp, method_name, None)
+            if method:
+                method()
+
+    def savePreferences(self, filename: str):
+        preferences = {}
+        for comp in self._components:
+            if comp is self:
+                continue
+            try:
+                if isinstance(comp, SeriaMonComponent):
+                    comp.savePreferences(preferences)
+            except Exception as e:
+                for line in traceback.format_exc().splitlines():
+                    self.log(self.LOG_ERROR, line)
+        with open(filename, 'w') as writer:
+            for key, value in preferences.items():
+                writer.write('{}: {}\n'.format(key, value))
+            writer.close()
+
+    def loadPreferences(self, filename: str):
+        preferences = {}
+        try:
+            reader = open(filename, 'r')
+            for line in reader:
+                line = line.rstrip('\n\r')
+                try:
+                    pos = line.index(':')
+                    preferences[line[0:pos]] = line[pos+2:]
+                except Exception as e:
+                    for line in traceback.format_exc().splitlines():
+                        self.log(self.LOG_ERROR, line)
+                    self.log(self.LOG_ERROR, line)
+            reader.close()
+        except Exception as e:
+            for line in traceback.format_exc().splitlines():
+                self.log(self.LOG_ERROR, line)
+        for comp in self._components:
+            if comp is self:
+                continue
+            try:
+                if isinstance(comp, SeriaMonComponent):
+                    comp.loadPreferences(preferences)
+            except Exception as e:
+                for line in traceback.format_exc().splitlines():
+                    self.log(self.LOG_ERROR, line)
+
+    def updatePreferences(self):
+        for comp in self._components:
+            if comp is self:
+                continue
+            try:
+                if isinstance(comp, SeriaMonComponent):
+                    comp.updatePreferences()
+            except Exception as e:
+                for line in traceback.format_exc().splitlines():
+                    self.log(self.LOG_ERROR, line)
