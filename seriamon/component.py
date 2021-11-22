@@ -70,6 +70,9 @@ class SeriaMonComponent:
     def getComponentName(self):
         return self._component_name
 
+    def getComponentId(self):
+        return self.compId
+
     def setSink(self, sink):
         self.sink = sink
 
