@@ -48,14 +48,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         self.log_level = Preferences.getInstance().default_log_level
         self.compmgr.updatePreferences()
 
-        self.plotter = Plotter(sink=self)
-        self.textViewer = TextViewer(sink=self)
-        self.logger = Logger(sink=self)
         self.logImporter = LogImporter(sink=self)
-
-        self.splitter = QSplitter(QtCore.Qt.Vertical)
-        self.splitter.addWidget(self.plotter)
-        self.splitter.addWidget(self.textViewer)
 
         component_folder = os.path.join(os.path.dirname(__file__), 'components')
         """
@@ -92,6 +85,24 @@ class mainWindow(QMainWindow, SeriaMonComponent):
                 if sink is not self:
                     sink.setSource(component)
 
+        """
+           display components
+        """
+        self.plotter = Plotter(sink=self)
+        self.textViewer = TextViewer(sink=self)
+        self.logger = Logger(sink=self)
+
+        self.splitter = QSplitter(QtCore.Qt.Vertical)
+        self.splitter.addWidget(self.plotter)
+        self.splitter.addWidget(self.textViewer)
+
+        """
+           all component instanciates were created
+        """
+
+        """
+           load preferennces
+        """
         self.initPreferences('seriamon.app.',
                              [[ int,    'left',         None    ],
                               [ int,    'top',          None    ],
