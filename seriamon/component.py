@@ -38,7 +38,7 @@ class SeriaMonComponent:
         self.log_level = Preferences.getInstance().default_log_level
         self.sink = sink
         self.loadingPreferences = False
-        self.preferencePoperties = []
+        self.preferencePoperties = None
         self._seriamoncomponent_status = self.STATUS_NONE
         self._initialized = None
         if self.component_default_name:
@@ -82,6 +82,8 @@ class SeriaMonComponent:
             self.putLog(value, compId=compId, types=types, timestamp=timestamp)
 
     def savePreferences(self, prefs):
+        if not self.preferencePoperties:
+            return
         self.log(self.LOG_DEBUG, 'savePreferences: {}'.format(self))
         self.reflectFromUi()
         for prop in self.preferencePoperties:
@@ -96,6 +98,8 @@ class SeriaMonComponent:
             self.log(self.LOG_DEBUG, 'savePreferences: {}={}'.format(name, str(value)))
 
     def loadPreferences(self, prefs):
+        if not self.preferencePoperties:
+            return
         self.log(self.LOG_DEBUG, 'loadPreferences: {}'.format(self))
         self.loadingPreferences = True
         for prop in self.preferencePoperties:
@@ -134,6 +138,8 @@ class SeriaMonComponent:
         self.reflectToUi()
 
     def reflectToUi(self, items=None):
+        if not self.preferencePoperties:
+            return
         self.log(self.LOG_DEBUG, 'reflectToUi')
         if items is not None and type(items) is not list:
             items = [ items ]
@@ -165,6 +171,8 @@ class SeriaMonComponent:
                 self.log(self.LOG_WARNING, self.LOG_WARNING, 'failed to reflect {} {} to UI'.format(name, value))
 
     def reflectFromUi(self, items=None):
+        if not self.preferencePoperties:
+            return
         if self.loadingPreferences:
             self.log(self.LOG_DEBUG, 'skip reflectFromUi()')
             return
