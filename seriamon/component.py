@@ -27,10 +27,6 @@ class SeriaMonComponent:
 
     updated = QtCore.pyqtSignal(object)
 
-    @staticmethod
-    def setManager(manager):
-        SeriaMonComponent._manager = manager
-
     def __init__(self, sink=None, instanceId=0):
         self.compId = SeriaMonComponent._compId
         SeriaMonComponent._compId += 1
@@ -226,6 +222,14 @@ class SeriaMonPort(SeriaMonComponent):
 
 class ComponentManager(SeriaMonComponent):
 
+    _instance = None
+
+    @staticmethod
+    def get_instance():
+        if not ComponentManager._instance:
+            ComponentManager._instance = ComponentManager()
+        return ComponentManager._instance
+
     def __init__(self, sink=None, instanceId=0):
         self._lock = threading.Lock()
         self._components = []
@@ -308,3 +312,7 @@ class ComponentManager(SeriaMonComponent):
             except Exception as e:
                 for line in traceback.format_exc().splitlines():
                     self.log(self.LOG_ERROR, line)
+
+''' create ComponentManager instance and use it as SeriaMonComponent's manager
+'''
+SeriaMonComponent._manager = ComponentManager.get_instance()

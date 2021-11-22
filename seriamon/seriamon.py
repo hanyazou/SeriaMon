@@ -22,8 +22,7 @@ class mainWindow(QMainWindow, SeriaMonComponent):
     serialPortSignal = QtCore.pyqtSignal(str)
 
     def __init__(self):
-        self.compmgr = ComponentManager()
-        SeriaMonComponent.setManager(self.compmgr)
+        self.compmgr = ComponentManager.get_instance()
         super().__init__(sink=self)
         self.compmgr.setSink(self)
 
