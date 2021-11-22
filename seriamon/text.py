@@ -2,8 +2,8 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QTextCursor
 
-from seriamon.component import SeriaMonComponent
-from seriamon.preferences import Preferences
+from .component import *
+from .preferences import Preferences
 
 class TextViewer(QWidget, SeriaMonComponent):
     def __init__(self, sink, instanceId=0):
@@ -49,6 +49,18 @@ class TextViewer(QWidget, SeriaMonComponent):
         layout.addWidget(self.timestampCheckBox)
         layout.addWidget(self.compIdCheckBox)
         layout.addWidget(self.internalMsgCheckBox)
+        self.compid_checkboxes = []
+        self.visible_compids = [ 0 ]
+        for comp in ComponentManager.get_instance().getComponents():
+            if not isinstance(comp, SeriaMonPort):
+                continue
+            compid = comp.getComponentId()
+            cb = QCheckBox(f"{compid:2d} {comp.getComponentName()}")
+            cb.setChecked(True)
+            cb.stateChanged.connect(self.display_settings_changed)
+            layout.addWidget(cb)
+            self.compid_checkboxes.append((compid, cb))
+            self.visible_compids.append(compid)
         panel = QWidget()
         panel.setLayout(layout)
         scrollarea = QScrollArea()
@@ -70,6 +82,10 @@ class TextViewer(QWidget, SeriaMonComponent):
     def reflectFromUi(self, items=None):
         super().reflectFromUi(items)
         self.splitterState = ''.join(['{:02x}'.format(data[0]) for data in self.splitter.saveState()])
+        self.visible_compids = [ 0 ]
+        for (compid, cb) in self.compid_checkboxes:
+            if cb.isChecked():
+                self.visible_compids.append(compid)
 
     def putLog(self, value, compid=None, types=None, timestamp=None):
         value = str(value).rstrip('\n\r')
@@ -84,6 +100,8 @@ class TextViewer(QWidget, SeriaMonComponent):
 
     def append_to_textedit(self, timestamp, value, compid, types) -> int:
         if not self.show_internalmsg and 'i' in types:
+            return self.last_pos
+        if not compid in self.visible_compids:
             return self.last_pos
         cursor = QTextCursor(self.textEdit.document())
         cursor.movePosition(QTextCursor.End)
