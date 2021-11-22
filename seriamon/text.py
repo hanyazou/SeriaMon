@@ -9,6 +9,9 @@ class TextViewer(QWidget, SeriaMonComponent):
     def __init__(self, sink, instanceId=0):
         super().__init__(sink=sink, instanceId=instanceId)
 
+        self.buffer = []
+        self.last_pos = 0
+        self.ignore_ui_changes = False
         self.textEdit = QPlainTextEdit()
         self.textEdit.setReadOnly(True)
         doc = self.textEdit.document()
@@ -21,19 +24,22 @@ class TextViewer(QWidget, SeriaMonComponent):
 
         self.timestampCheckBox = QCheckBox('timestamp')
         self.timestampCheckBox.setChecked(True)
+        self.timestampCheckBox.stateChanged.connect(self.display_settings_changed)
 
         self.compIdCheckBox = QCheckBox('port id')
         self.compIdCheckBox.setChecked(False)
+        self.compIdCheckBox.stateChanged.connect(self.display_settings_changed)
 
         self.internalMsgCheckBox = QCheckBox('internal message')
         self.internalMsgCheckBox.setChecked(False)
+        self.internalMsgCheckBox.stateChanged.connect(self.display_settings_changed)
 
         self.initPreferences('seriamon.textviewer.{}.'.format(instanceId),
-                             [[ bool,   'autoScroll',    True,   self.autoScrollCheckBox ],
-                              [ bool,   'timestamp',     True,   self.timestampCheckBox ],
-                              [ bool,   'compId',        False,  self.compIdCheckBox ],
-                              [ bool,   'internalMsg',   False,  self.internalMsgCheckBox ],
-                              [ str,    'splitterState', None    ]])
+                             [[ bool,   'auto_scroll',      True,   self.autoScrollCheckBox ],
+                              [ bool,   'show_timestamp',   True,   self.timestampCheckBox ],
+                              [ bool,   'show_compid',      False,  self.compIdCheckBox ],
+                              [ bool,   'show_internalmsg', False,  self.internalMsgCheckBox ],
+                              [ str,    'splitterState',    None    ]])
 
         self.splitter = QSplitter(QtCore.Qt.Horizontal)
         self.splitter.addWidget(self.textEdit)
@@ -54,27 +60,44 @@ class TextViewer(QWidget, SeriaMonComponent):
         self.setLayout(layout)
 
     def reflectToUi(self, items=None):
+        self.ignore_ui_changes = True
         super().reflectToUi(items)
         if self.splitterState:
             self.splitter.restoreState(bytearray.fromhex(self.splitterState))
+        self.ignore_ui_changes = False
+        self.redraw()
 
     def reflectFromUi(self, items=None):
         super().reflectFromUi(items)
         self.splitterState = ''.join(['{:02x}'.format(data[0]) for data in self.splitter.saveState()])
 
-    def putLog(self, value, compId=None, types=None, timestamp=None):
-        if not self.internalMsgCheckBox.isChecked() and 'i' in types:
-            return
+    def putLog(self, value, compid=None, types=None, timestamp=None):
+        value = str(value).rstrip('\n\r')
+        if Preferences.getInstance().scroll_buffer <= len(self.buffer):
+            self.buffer = self.buffer[len(self.buffer) - Preferences.getInstance().scroll_buffer + 1 : ]
+        pos = self.append_to_textedit(timestamp, value, compid, types)
+        self.buffer.append([pos, timestamp, value, compid, types])
+
+    def clearLog(self):
+        self.buffer = []
+        self.redraw()
+
+    def append_to_textedit(self, timestamp, value, compid, types) -> int:
+        if not self.show_internalmsg and 'i' in types:
+            return self.last_pos
         cursor = QTextCursor(self.textEdit.document())
         cursor.movePosition(QTextCursor.End)
-        if self.timestampCheckBox.isChecked():
-            cursor.insertText("{} ".format(timestamp.isoformat(sep=' ', timespec='milliseconds')))
-        if self.compIdCheckBox.isChecked():
-            if isinstance(compId, int):
-                cursor.insertText('{:02} '.format(compId))
+        line = ''
+        if self.show_timestamp:
+            line += "{} ".format(timestamp.isoformat(sep=' ', timespec='milliseconds'))
+        if self.show_compid:
+            if isinstance(compid, int):
+                line += '{:02} '.format(compid)
             else:
-                cursor.insertText('{:2} '.format(compId))
-        cursor.insertText('{}\n'.format(str(value).rstrip('\n\r')))
+                line += '{:2} '.format(compid)
+        line += value
+        line += '\n'
+        cursor.insertText(line)
         scrollbar = self.textEdit.verticalScrollBar()
         scrollpos = scrollbar.maximum() - scrollbar.value()
         while Preferences.getInstance().scroll_buffer < self.textEdit.document().blockCount() - 1:
@@ -83,8 +106,36 @@ class TextViewer(QWidget, SeriaMonComponent):
             cursor.removeSelectedText()
             cursor.deleteChar()
         if self.autoScrollCheckBox.isChecked():
-            scrollpos = -1
+            scrollpos = 1
         scrollbar.setValue(scrollbar.maximum() - scrollpos)
+        self.last_pos = scrollbar.maximum() - 1
+        return self.last_pos
 
-    def clearLog(self):
+    def get_index_from_pos(self, pos: int) -> int:
+        for index in range(len(self.buffer)-1, -1, -1):
+            if self.buffer[index][0] <= pos:
+                return index
+        return 0
+
+    def get_pos_from_index(self, index: int) -> int:
+        if len(self.buffer) == 0:
+            return 0
+        if len(self.buffer) <= index:
+            return self.buffer[-1][0]
+        if 0 <= index:
+            return self.buffer[index][0]
+        return 0
+
+    def redraw(self):
+        index = self.get_index_from_pos(self.textEdit.verticalScrollBar().value())
         self.textEdit.clear()
+        self.last_pos = 0
+        for line in self.buffer:
+            line[0] = self.append_to_textedit(line[1], line[2], line[3], line[4])
+        self.textEdit.verticalScrollBar().setValue(self.get_pos_from_index(index))
+
+    def display_settings_changed(self):
+        if self.ignore_ui_changes:
+            return
+        self.reflectFromUi()
+        self.redraw()

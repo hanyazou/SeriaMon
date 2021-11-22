@@ -138,7 +138,8 @@ class mainWindow(QMainWindow, SeriaMonComponent):
         filemenu = menubar.addMenu('&File')
 
         menu = QAction('&Preferences', self)
-        menu.triggered.connect(self.prefencesDialog.setupDialog().exec)
+        menu.triggered.connect(lambda: [ self.compmgr.callAllComponentsMethod(method_name='reflectFromUi'),
+                                         self.prefencesDialog.setupDialog().exec() ])
         filemenu.addAction(menu)
         menu = QAction('&Log...', self)
         menu.triggered.connect(self.logger.setupDialog().exec)
