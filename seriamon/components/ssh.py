@@ -65,7 +65,7 @@ class Component(QWidget, SeriaMonPort):
                              [[ str,    'host',     '',           self.hostTextEdit ],
                               [ str,    'user',     '',           self.userTextEdit ],
                               [ str,    'password', '',           self.passwordTextEdit ],
-                              [ str,    'command',  '/bin/sh',    self.commandTextEdit ],
+                              [ str,    'command',  '/bin/bash -i', self.commandTextEdit ],
                               [ bool,   'connect',  False,         None ]])
 
         self.connectButton = QPushButton()
